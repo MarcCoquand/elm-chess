@@ -1,5 +1,14 @@
-module Piece exposing (HasMoved, Piece(..), isUnmovedKing, isUnmovedRook, show)
+module Piece exposing
+    ( HasMoved
+    , Piece(..)
+    , isUnmovedKing
+    , isUnmovedRook
+    , show
+    , update
+    , view
+    )
 
+import Element exposing (Element)
 import Player exposing (Player(..))
 import Set exposing (Set)
 
@@ -57,6 +66,11 @@ update piece =
 
         Knight ->
             Knight
+
+
+view : Player -> Piece -> Element msg
+view player piece =
+    Element.text (show player piece)
 
 
 show : Player -> Piece -> String

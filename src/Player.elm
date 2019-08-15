@@ -1,4 +1,6 @@
-module Player exposing (Player(..), next)
+module Player exposing (Player(..), display, next)
+
+import Element exposing (Element)
 
 
 type Player
@@ -14,3 +16,18 @@ next player =
 
         White ->
             Black
+
+
+show : Player -> String
+show player =
+    case player of
+        White ->
+            "White"
+
+        Black ->
+            "Black"
+
+
+display : Player -> Element msg
+display player =
+    Element.text (show player)

@@ -1,11 +1,30 @@
-module Board exposing (Board(..), Coordinate, construct, display, filter, filterExtract, foldr, get, inBounds, isLegalMove, isWithinRange, makeIndex, numberList, set, size, toIndexedList, toString, update, upperBound)
+module Board exposing
+    ( Board
+    , Position
+    , construct
+    , filter
+    , filterExtract
+    , foldr
+    , get
+    , inBounds
+    , isWithinRange
+    , makeIndex
+    , numberList
+    , set
+    , size
+    , toIndexedList
+    , update
+    , upperBound
+    , view
+    )
 
 import Array exposing (Array)
+import Element exposing (Element)
 import Set exposing (Set)
 import String
 
 
-type alias Coordinate =
+type alias Position =
     ( Int, Int )
 
 
@@ -13,21 +32,35 @@ type Board square
     = CreateBoard (Array (Array square))
 
 
-toString : (e -> String) -> Board e -> List String
-toString show (CreateBoard board) =
-    let
-        showRow y =
-            Array.map show y
-                |> Array.toList
-                |> String.join " "
-    in
-    Array.map showRow board
-        |> Array.toList
+viewRow :
+    { squareView : e -> msg -> Element msg
+    , msg : Int -> msg
+    , row : Array e
+    }
+    -> Element msg
+viewRow { squareView, msg, row } =
+    row
+        |> Array.toIndexedList
+        |> List.map
+            (\( rowIndex, e ) ->
+                squareView e (msg rowIndex)
+            )
+        |> Element.row [ Element.width Element.fill ]
 
 
-isLegalMove : Set Coordinate -> Coordinate -> Bool
-isLegalMove legalMoves destination =
-    Set.member destination legalMoves
+view : (e -> msg -> Element msg) -> (Position -> msg) -> Board e -> Element msg
+view squareView msg (CreateBoard board) =
+    board
+        |> Array.toIndexedList
+        |> List.map
+            (\( columnIndex, row ) ->
+                viewRow
+                    { squareView = squareView
+                    , msg = \rowIndex -> msg ( columnIndex, rowIndex )
+                    , row = row
+                    }
+            )
+        |> Element.column [ Element.height Element.fill ]
 
 
 numberList : Int -> Int -> String
@@ -60,7 +93,7 @@ makeIndex board =
 {- Folds board row by row -}
 
 
-toIndexedList : Board square -> List ( Coordinate, square )
+toIndexedList : Board square -> List ( Position, square )
 toIndexedList (CreateBoard board) =
     Array.toIndexedList board
         |> List.map (\( column, arr ) -> ( column, Array.toIndexedList arr ))
@@ -79,13 +112,6 @@ foldr folder initial (CreateBoard board) =
             Array.foldr folder i row
     in
     Array.foldr foldRow initial board
-
-
-display : (e -> String) -> Board e -> String
-display show board =
-    toString show board
-        |> makeIndex
-        |> String.join "\n"
 
 
 size : Int
@@ -112,13 +138,13 @@ isWithinRange ( c1, c2 ) ( c3, c4 ) =
     c1 <= c3 && c2 <= c4 && c1 > 0 && c2 > 0
 
 
-get : Board square -> Coordinate -> Maybe square
+get : Board square -> Position -> Maybe square
 get (CreateBoard board) ( row, column ) =
     Array.get column board
         |> Maybe.andThen (Array.get row)
 
 
-set : ( Coordinate, square ) -> Board square -> Board square
+set : ( Position, square ) -> Board square -> Board square
 set ( ( x, y ), square ) (CreateBoard board) =
     Array.get y board
         |> Maybe.map (Array.set x square)
@@ -127,7 +153,7 @@ set ( ( x, y ), square ) (CreateBoard board) =
         |> Maybe.withDefault (CreateBoard board)
 
 
-update : Board square -> List ( Coordinate, square ) -> Board square
+update : Board square -> List ( Position, square ) -> Board square
 update board changes =
     List.foldr set board changes
 
