@@ -1,6 +1,5 @@
 module Board exposing
     ( Board
-    , Position
     , construct
     , filter
     , filterExtract
@@ -20,12 +19,10 @@ module Board exposing
 
 import Array exposing (Array)
 import Element exposing (Element)
+import Element.Font as Font
+import Position exposing (Position)
 import Set exposing (Set)
 import String
-
-
-type alias Position =
-    ( Int, Int )
 
 
 type Board square
@@ -33,34 +30,55 @@ type Board square
 
 
 viewRow :
-    { squareView : e -> msg -> Element msg
-    , msg : Int -> msg
+    { renderSquare : Int -> e -> msg -> Element msg
+    , indexedMsg : Int -> msg
     , row : Array e
     }
     -> Element msg
-viewRow { squareView, msg, row } =
+viewRow { renderSquare, indexedMsg, row } =
     row
         |> Array.toIndexedList
         |> List.map
             (\( rowIndex, e ) ->
-                squareView e (msg rowIndex)
+                renderSquare rowIndex e (indexedMsg rowIndex)
             )
         |> Element.row [ Element.width Element.fill ]
 
 
-view : (e -> msg -> Element msg) -> (Position -> msg) -> Board e -> Element msg
-view squareView msg (CreateBoard board) =
-    board
+view :
+    { renderSquare : Position -> e -> msg -> Element msg
+    , indexedMsg : Position -> msg
+    , board : Board e
+    }
+    -> Element msg
+view { renderSquare, indexedMsg, board } =
+    let
+        (CreateBoard array) =
+            board
+    in
+    array
         |> Array.toIndexedList
         |> List.map
             (\( columnIndex, row ) ->
                 viewRow
-                    { squareView = squareView
-                    , msg = \rowIndex -> msg ( columnIndex, rowIndex )
+                    { renderSquare =
+                        \rowIndex ->
+                            renderSquare
+                                (Position.make { x = rowIndex, y = columnIndex })
+                    , indexedMsg =
+                        \rowIndex ->
+                            indexedMsg
+                                (Position.make
+                                    { x = rowIndex, y = columnIndex }
+                                )
                     , row = row
                     }
             )
-        |> Element.column [ Element.height Element.fill ]
+        |> Element.column
+            [ Element.height Element.fill
+            , Font.size 50
+            , Font.family [ Font.monospace ]
+            ]
 
 
 numberList : Int -> Int -> String
@@ -83,16 +101,13 @@ makeIndex board =
             appendNumber n row
 
         numberedBoardRows =
-            -- Prefer foldl' over foldl for efficiency and avoiding space leaks.
             List.indexedMap appendRow board
     in
     numberedTopRow :: numberedBoardRows
 
 
-
-{- Folds board row by row -}
-
-
+{-| Folds board row by row
+-}
 toIndexedList : Board square -> List ( Position, square )
 toIndexedList (CreateBoard board) =
     Array.toIndexedList board
@@ -139,22 +154,37 @@ isWithinRange ( c1, c2 ) ( c3, c4 ) =
 
 
 get : Board square -> Position -> Maybe square
-get (CreateBoard board) ( row, column ) =
-    Array.get column board
-        |> Maybe.andThen (Array.get row)
+get (CreateBoard board) position =
+    let
+        getY =
+            Array.get (Position.getY position) board
+
+        getX =
+            Array.get (Position.getX position)
+    in
+    getY
+        |> Maybe.andThen getX
 
 
 set : ( Position, square ) -> Board square -> Board square
-set ( ( x, y ), square ) (CreateBoard board) =
-    Array.get y board
-        |> Maybe.map (Array.set x square)
-        |> Maybe.map (\row -> Array.set x row board)
-        |> Maybe.map CreateBoard
+set ( position, square ) (CreateBoard board) =
+    let
+        setRow =
+            -- First extract from column
+            Array.get (Position.getY position) board
+                |> Maybe.map (Array.set (Position.getX position) square)
+
+        setColumn row =
+            Array.set (Position.getY position) row board
+                |> CreateBoard
+    in
+    setRow
+        |> Maybe.map setColumn
         |> Maybe.withDefault (CreateBoard board)
 
 
-update : Board square -> List ( Position, square ) -> Board square
-update board changes =
+update : List ( Position, square ) -> Board square -> Board square
+update changes board =
     List.foldr set board changes
 
 

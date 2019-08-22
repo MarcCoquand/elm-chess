@@ -1,28 +1,17 @@
-module Square exposing (Square(..), initialBoard, view)
+module Square exposing (Get, Square(..), belongs, blank, blue, check, checkPiece, collision, extractPlayer, get, getBelongingTo, highlighter, isOpponent, pieceThreatened, swapLeft, swapRight, updatePiece, view, white)
 
 import Board exposing (Board)
 import Element exposing (Element)
 import Element.Background as Background
+import Element.Border as Border
 import Element.Input as Input
 import Html exposing (Html)
 import Html.Events as Html
 import Moves exposing (Moves, Valid)
 import Piece exposing (Piece(..))
 import Player exposing (Player(..))
-import Predicate
-    exposing
-        ( BelongsToPlayer
-        , IsBlank
-        , IsCollision
-        , OutOfBounds
-        , Predicate
-        , Swappable
-        , Threatened
-        )
-
-
-type alias Position =
-    ( Int, Int )
+import Position exposing (Position)
+import Predicate exposing (Predicate)
 
 
 type Square
@@ -30,29 +19,40 @@ type Square
     | Contains Player Piece
 
 
-show : Square -> String
-show square =
-    case square of
-        Blank ->
-            " "
-
-        Contains player piece ->
-            Piece.show player piece
+type alias Get =
+    Position -> Maybe Square
 
 
 white =
     Element.rgb255 255 255 255
 
 
-view : Square -> msg -> Element msg
-view square msg =
+blue =
+    Element.rgb255 200 200 255
+
+
+highlighter enabled =
+    if enabled then
+        Background.color blue
+
+    else
+        Background.color white
+
+
+view : { highlight : Bool, square : Square, onClick : msg } -> Element msg
+view { highlight, square, onClick } =
     case square of
         Blank ->
-            Element.text " "
+            Input.button
+                [ highlighter highlight
+                , Border.solid
+                , Border.width 2
+                ]
+                { onPress = Just onClick, label = Element.text " " }
 
         Contains player piece ->
-            Input.button [ Background.color white ]
-                { onPress = Just msg, label = Piece.view player piece }
+            Input.button [ highlighter highlight, Border.solid, Border.width 2 ]
+                { onPress = Just onClick, label = Piece.view player piece }
 
 
 extractPlayer : Square -> Maybe Player
@@ -109,75 +109,60 @@ updatePiece square =
 -- CONDITIONS
 
 
-belongs : Board Square -> Player -> Position -> Bool
-belongs board player position =
-    Board.get board position
-        |> Maybe.map
-            (\square ->
-                case square of
-                    Blank ->
-                        False
+belongs : Player -> Square -> Bool
+belongs player square =
+    case square of
+        Blank ->
+            False
 
-                    Contains owner _ ->
-                        player == owner
-            )
-        |> Maybe.withDefault False
+        Contains owner _ ->
+            player == owner
 
 
-isBlank : Board Square -> Position -> Bool
-isBlank board position =
-    Board.get board position
-        |> Maybe.map
-            (\square ->
-                case square of
-                    Blank ->
-                        True
+blank : Square -> Bool
+blank square =
+    case square of
+        Blank ->
+            True
 
-                    Contains _ _ ->
-                        False
-            )
-        |> Maybe.withDefault False
+        Contains _ _ ->
+            False
 
 
-isCollision : Board Square -> Position -> Bool
-isCollision board position =
-    Board.get board position
-        |> Maybe.map
-            (\square ->
-                case square of
-                    Blank ->
-                        False
+collision : Square -> Bool
+collision square =
+    case square of
+        Blank ->
+            False
 
-                    Contains _ _ ->
-                        True
-            )
-        |> Maybe.withDefault False
+        Contains _ _ ->
+            True
 
 
-check : Board Square -> Position -> (Square -> Bool) -> Bool
-check board coord condition =
-    Board.get board coord
+check : (Square -> Bool) -> (Position -> Maybe Square) -> Position -> Bool
+check condition getter position =
+    getter position
         |> Maybe.map condition
         |> Maybe.withDefault False
 
 
-checkPiece : { board : Board Square, position : Position, condition : ( Player, Piece ) -> Bool } -> Bool
-checkPiece { board, position, condition } =
-    Board.get board position
+checkPiece : { getter : Get, position : Position, condition : ( Player, Piece ) -> Bool } -> Bool
+checkPiece { getter, position, condition } =
+    getter position
         |> Maybe.andThen get
         |> Maybe.map condition
         |> Maybe.withDefault False
 
 
-swapRight : Board Square -> Player -> Position -> Bool
-swapRight board player ( x, y ) =
+swapRight : Get -> Player -> Position -> Bool
+swapRight getter player ( x, y ) =
     let
         blankSide =
-            List.all (isBlank board) [ ( x + 1, y ), ( x + 2, y ) ]
+            List.all (check blank getter) [ ( x + 1, y ), ( x + 2, y ) ]
 
         isUnmovedRook =
             checkPiece
-                { board = board
+                { getter = getter
                 , position = ( x + 3, y )
                 , condition =
                     \( owner, piece ) ->
@@ -186,7 +171,7 @@ swapRight board player ( x, y ) =
 
         isUnmovedKing =
             checkPiece
-                { board = board
+                { getter = getter
                 , position = ( x, y )
                 , condition =
                     \( owner, piece ) ->
@@ -196,15 +181,15 @@ swapRight board player ( x, y ) =
     blankSide && isUnmovedRook && isUnmovedKing
 
 
-swapLeft : Board Square -> Player -> Position -> Bool
-swapLeft board player ( x, y ) =
+swapLeft : Get -> Player -> Position -> Bool
+swapLeft getter player ( x, y ) =
     let
         blankSide =
-            List.all (isBlank board) [ ( x - 1, y ), ( x - 2, y ), ( x - 3, y ) ]
+            List.all (check blank getter) [ ( x - 1, y ), ( x - 2, y ), ( x - 3, y ) ]
 
         isUnmovedRook =
             checkPiece
-                { board = board
+                { getter = getter
                 , position = ( x - 4, y )
                 , condition =
                     \( owner, piece ) ->
@@ -213,7 +198,7 @@ swapLeft board player ( x, y ) =
 
         isUnmovedKing =
             checkPiece
-                { board = board
+                { getter = getter
                 , position = ( x, y )
                 , condition =
                     \( owner, piece ) ->
@@ -250,174 +235,3 @@ pieceThreatened board player position =
                     )
     in
     isInRangeOf opponentsRange
-
-
-
--- Predicates
-
-
-belongsPredicate : Board Square -> Player -> Predicate Position BelongsToPlayer
-belongsPredicate board player =
-    Predicate.make (belongs board player) Predicate.BelongsToPlayer
-
-
-outOfBoundsPredicate : Predicate Position OutOfBounds
-outOfBoundsPredicate =
-    Predicate.make Board.inBounds Predicate.OutOfBounds
-
-
-collisionPredicate : Board Square -> Predicate Position IsCollision
-collisionPredicate board =
-    Predicate.make (isCollision board) Predicate.IsCollision
-
-
-threatPredicate : Board Square -> Player -> Predicate Position Threatened
-threatPredicate board player =
-    Predicate.make (pieceThreatened board player) Predicate.Threatened
-
-
-blankPredicate : Board Square -> Predicate Position IsBlank
-blankPredicate board =
-    Predicate.make (isBlank board) Predicate.IsBlank
-
-
-swapRightPredicate : Board Square -> Player -> Predicate Position Swappable
-swapRightPredicate board player =
-    Predicate.make (swapRight board player) Predicate.Swappable
-
-
-swapLeftPredicate : Board Square -> Player -> Predicate Position Swappable
-swapLeftPredicate board player =
-    Predicate.make (swapLeft board player) Predicate.Swappable
-
-
-
--- BOARD
-
-
-movesHelper :
-    { board : Board Square
-    , position : Position
-    , player : Player
-    , piece : Piece
-    }
-    -> Moves Valid
-movesHelper { board, position, player, piece } =
-    case piece of
-        Pawn hasMoved ->
-            Moves.pawn
-                { player = player
-                , belongsToPlayer = belongsPredicate board player
-                , isBlank = blankPredicate board
-                , collision = collisionPredicate board
-                , outOfBounds = outOfBoundsPredicate
-                , hasMoved = hasMoved
-                , position = position
-                }
-
-        Rook _ ->
-            Moves.rook
-                { belongsToPlayer = belongsPredicate board player
-                , outOfBounds = outOfBoundsPredicate
-                , position = position
-                }
-
-        King _ ->
-            Moves.king
-                { belongsToPlayer = belongsPredicate board player
-                , outOfBounds = outOfBoundsPredicate
-                , isThreatened = threatPredicate board player
-                , position = position
-                , swapRight = swapRightPredicate board player
-                , swapLeft = swapLeftPredicate board player
-                }
-
-        Queen ->
-            Moves.queen
-                { belongsToPlayer = belongsPredicate board player
-                , outOfBounds = outOfBoundsPredicate
-                , position = position
-                }
-
-        Bishop ->
-            Moves.bishop
-                { belongsToPlayer = belongsPredicate board player
-                , outOfBounds = outOfBoundsPredicate
-                , position = position
-                }
-
-        Knight ->
-            Moves.knight
-                { belongsToPlayer = belongsPredicate board player
-                , outOfBounds = outOfBoundsPredicate
-                , position = position
-                }
-
-
-moves : Board Square -> Position -> Maybe (Moves Valid)
-moves board position =
-    Board.get board position
-        |> Maybe.andThen get
-        |> Maybe.map
-            (\( player, piece ) ->
-                movesHelper
-                    { board = board
-                    , player = player
-                    , piece = piece
-                    , position = position
-                    }
-            )
-
-
-initialBoard : Maybe (Board Square)
-initialBoard =
-    let
-        wPa =
-            Contains White (Piece.Pawn False)
-
-        wKn =
-            Contains White Piece.Knight
-
-        wKi =
-            Contains White (Piece.King False)
-
-        wRo =
-            Contains White (Piece.Rook False)
-
-        wBi =
-            Contains White Piece.Bishop
-
-        wQu =
-            Contains White Piece.Queen
-
-        bPa =
-            Contains Black (Piece.Pawn False)
-
-        bKn =
-            Contains Black Piece.Knight
-
-        bKi =
-            Contains Black (Piece.King False)
-
-        bRo =
-            Contains Black (Piece.Rook False)
-
-        bBi =
-            Contains Black Piece.Bishop
-
-        bQu =
-            Contains Black Piece.Queen
-
-        ooo =
-            Blank
-    in
-    [ [ wRo, wKn, wBi, wKi, wQu, wBi, wKn, wRo ]
-    , [ wPa, wPa, wPa, wPa, wPa, wPa, wPa, wPa ]
-    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
-    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
-    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
-    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
-    , [ bPa, bPa, bPa, bPa, bPa, bPa, bPa, bPa ]
-    , [ bRo, bKn, bBi, bKi, bQu, bBi, bKn, bRo ]
-    ]
-        |> Board.construct

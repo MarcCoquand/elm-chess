@@ -1,52 +1,22 @@
 module Predicate exposing
-    ( BelongsToPlayer(..)
-    , IsBlank(..)
-    , IsCollision(..)
-    , OutOfBounds(..)
-    , Predicate
-    , Swappable(..)
-    , Threatened(..)
+    ( Predicate
     , check
     , contramap
     , make
     )
 
 
-type Predicate a b
+type Predicate a
     = Predicate (a -> Bool)
 
 
-type IsCollision
-    = IsCollision
-
-
-type BelongsToPlayer
-    = BelongsToPlayer
-
-
-type Threatened
-    = Threatened
-
-
-type IsBlank
-    = IsBlank
-
-
-type Swappable
-    = Swappable
-
-
-type OutOfBounds
-    = OutOfBounds
-
-
-check : Predicate a b -> a -> Bool
+check : Predicate a -> a -> Bool
 check (Predicate checker) value =
     checker value
 
 
-make : (a -> Bool) -> b -> Predicate a b
-make predicate _ =
+make : (a -> Bool) -> Predicate a
+make predicate =
     Predicate predicate
 
 
@@ -55,7 +25,7 @@ make predicate _ =
 -- Using these
 
 
-contramap : (a -> c) -> Predicate c b -> Predicate a b
+contramap : (a -> c) -> Predicate c -> Predicate a
 contramap cf (Predicate checker) =
     Predicate
         (\a ->
@@ -63,7 +33,7 @@ contramap cf (Predicate checker) =
         )
 
 
-combine : (a -> ( c, d )) -> Predicate c m -> Predicate d n -> Predicate a o
+combine : (a -> ( c, d )) -> Predicate c -> Predicate d -> Predicate a
 combine cf (Predicate cChecker) (Predicate dChecker) =
     -- A.K.A. divide from Haskell
     Predicate

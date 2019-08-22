@@ -2,9 +2,11 @@ module Moves exposing
     ( All
     , Illegal
     , Moves
-    , Position
     , Valid
     , bishop
+    , checkAll
+    , empty
+    , fromList
     , king
     , knight
     , member
@@ -13,19 +15,12 @@ module Moves exposing
     , remove
     , rook
     , rules
+    , toList
     )
 
 import Player exposing (Player(..))
-import Predicate
-    exposing
-        ( BelongsToPlayer
-        , IsBlank
-        , IsCollision
-        , OutOfBounds
-        , Predicate
-        , Swappable
-        , Threatened
-        )
+import Position exposing (Position)
+import Predicate exposing (Predicate)
 import Set exposing (Set)
 import Set.Extra exposing (unions)
 
@@ -38,13 +33,15 @@ type alias HasMoved =
     Bool
 
 
-type alias Position =
-    ( Int, Int )
-
-
 empty : Moves a
 empty =
     Moves Set.empty
+
+
+checkAll : (Position -> Bool) -> Moves a -> Bool
+checkAll condition (Moves moves) =
+    Set.filter (not << condition) moves
+        |> (\set -> set == Set.empty)
 
 
 union : Moves a -> Moves a -> Moves a
@@ -91,17 +88,57 @@ rules =
     List.foldl union empty
 
 
+fromList : List Position -> Moves a
+fromList moves =
+    Set.fromList moves |> Moves
 
+
+toList : Moves a -> List Position
+toList (Moves moves) =
+    Set.toList moves
+
+
+
+-- If collision it should not be able to move behind the piece
+
+
+collisionRule :
+    { isCollision : Predicate Position
+    , allMoves : Moves All
+    , position :
+        Position
+    }
+    -> Moves Illegal
+collisionRule { isCollision, allMoves, position } =
+    let
+        (Moves all) =
+            allMoves
+    in
+    Set.filter
+        (\el ->
+            Position.isClosest
+                { isCollision = isCollision
+                , start = position
+                , end = el
+                }
+        )
+        all
+        |> Moves
+
+
+
+-- Get within radius closest radius
 -- BISHOP
 
 
 bishop :
-    { belongsToPlayer : Predicate Position BelongsToPlayer
-    , outOfBounds : Predicate Position OutOfBounds
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
+    , collision : Predicate Position
     , position : Position
     }
     -> Moves Valid
-bishop { belongsToPlayer, outOfBounds, position } =
+bishop { belongsToPlayer, outOfBounds, collision, position } =
     let
         all =
             allBishop position
@@ -110,22 +147,48 @@ bishop { belongsToPlayer, outOfBounds, position } =
             rules
                 [ outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
+                , collisionRule
+                    { isCollision = collision
+                    , position = position
+                    , allMoves = all
+                    }
                 ]
     in
     remove illegalMoves all
 
 
 allBishop : Position -> Moves All
-allBishop ( x, y ) =
+allBishop position =
     let
         positiveDiagonal =
-            List.range -8 8 |> List.map (\value -> ( value + x, value + y ))
+            List.range -8 8
+                |> List.map
+                    (\value ->
+                        Position.make
+                            { x =
+                                value
+                                    + Position.getX position
+                            , y = value + Position.getY position
+                            }
+                    )
 
         negativeDiagonal =
-            List.range -8 8 |> List.map (\value -> ( value + x, y - value ))
+            List.range -8 8
+                |> List.map
+                    (\value ->
+                        Position.make
+                            { x = value + Position.getX position
+                            , y = Position.getY position - value
+                            }
+                    )
 
         currentPosition =
-            Set.singleton ( x, y )
+            Set.singleton
+                (Position.make
+                    { x = Position.getX position
+                    , y = Position.getY position
+                    }
+                )
     in
     positiveDiagonal
         ++ negativeDiagonal
@@ -143,13 +206,13 @@ member position (Moves move) =
 -- KING
 
 
-kingThreatenedRule : Predicate Position Threatened -> Moves All -> Moves Illegal
+kingThreatenedRule : Predicate Position -> Moves All -> Moves Illegal
 kingThreatenedRule isThreatened (Moves all) =
     Set.filter (Predicate.check isThreatened) all
         |> Moves
 
 
-kingSwapRightRule : Predicate Position Swappable -> Position -> Moves Illegal
+kingSwapRightRule : Predicate Position -> Position -> Moves Illegal
 kingSwapRightRule isSwappable ( x, y ) =
     if Predicate.check isSwappable ( x, y ) then
         Set.empty
@@ -160,7 +223,7 @@ kingSwapRightRule isSwappable ( x, y ) =
             |> Moves
 
 
-kingSwapLeftRule : Predicate Position Swappable -> Position -> Moves Illegal
+kingSwapLeftRule : Predicate Position -> Position -> Moves Illegal
 kingSwapLeftRule isSwappable ( x, y ) =
     if Predicate.check isSwappable ( x, y ) then
         Set.empty
@@ -172,12 +235,12 @@ kingSwapLeftRule isSwappable ( x, y ) =
 
 
 king :
-    { belongsToPlayer : Predicate Position BelongsToPlayer
-    , outOfBounds : Predicate Position OutOfBounds
-    , isThreatened : Predicate Position Threatened
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
+    , isThreatened : Predicate Position
     , position : Position
-    , swapRight : Predicate Position Swappable
-    , swapLeft : Predicate Position Swappable
+    , swapRight : Predicate Position
+    , swapLeft : Predicate Position
     }
     -> Moves Valid
 king { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft } =
@@ -232,8 +295,8 @@ allKing ( x, y ) =
 
 
 knight :
-    { belongsToPlayer : Predicate Position BelongsToPlayer
-    , outOfBounds : Predicate Position OutOfBounds
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
     , position : Position
     }
     -> Moves Valid
@@ -270,20 +333,20 @@ allKnight ( x, y ) =
 -- PAWN
 
 
-southRule : Position -> Moves Illegal
-southRule ( x, y ) =
+onlyUpRule : Position -> Moves Illegal
+onlyUpRule ( x, y ) =
     Set.fromList
-        [ ( x - 1, y + 1 )
-        , ( x - 1, y - 1 )
-        , ( x - 2, y )
-        , ( x - 1, y )
+        [ ( x + 1, y + 1 )
+        , ( x - 1, y + 1 )
+        , ( x, y + 2 )
+        , ( x, y + 1 )
         ]
         |> Moves
 
 
-northRule : Position -> Moves Illegal
-northRule ( x, y ) =
-    Set.fromList [ ( x + 1, y + 1 ), ( x + 1, y - 1 ), ( x + 2, y ), ( x + 1, y ) ]
+onlyDownRule : Position -> Moves Illegal
+onlyDownRule ( x, y ) =
+    Set.fromList [ ( x + 1, y - 1 ), ( x - 1, y - 1 ), ( x, y - 2 ), ( x, y - 1 ) ]
         |> Moves
 
 
@@ -291,7 +354,7 @@ pawnDoubleMoveRule : Bool -> Position -> Moves Illegal
 pawnDoubleMoveRule hasMoved ( x, y ) =
     let
         initial =
-            Set.fromList [ ( x + 2, y ), ( x - 2, y ) ]
+            Set.fromList [ ( x, y + 2 ), ( x, y - 2 ) ]
     in
     if hasMoved then
         initial
@@ -304,53 +367,53 @@ pawnDoubleMoveRule hasMoved ( x, y ) =
 
 pawnDirectionRule : Player -> Position -> Moves Illegal
 pawnDirectionRule player positions =
-    case getDirection player of
-        North ->
-            southRule positions
+    case player of
+        Black ->
+            onlyUpRule positions
 
-        South ->
-            northRule positions
+        White ->
+            onlyDownRule positions
 
 
 pawnAttackRules :
-    Predicate Position IsBlank
+    Predicate Position
     -> Position
     -> Moves Illegal
-pawnAttackRules isEmpty ( x, y ) =
+pawnAttackRules isBlank ( x, y ) =
     let
         attackRange =
             Set.fromList
                 [ ( x + 1, y + 1 )
-                , ( x + 1, y - 1 )
                 , ( x - 1, y + 1 )
+                , ( x + 1, y - 1 )
                 , ( x - 1, y - 1 )
                 ]
     in
     Set.filter
         (\positioninate ->
-            Predicate.check isEmpty positioninate
+            Predicate.check isBlank positioninate
         )
         attackRange
         |> Moves
 
 
-pawnCollisionRule : Predicate Position IsCollision -> Position -> Moves Illegal
+pawnCollisionRule : Predicate Position -> Position -> Moves Illegal
 pawnCollisionRule isCollision ( x, y ) =
     let
         set =
-            Set.fromList [ ( x + 1, y ), ( x + 2, y ), ( x - 1, y ), ( x - 2, y ) ]
+            Set.fromList [ ( x, y + 1 ), ( x, y + 2 ), ( x, y - 1 ), ( x, y - 2 ) ]
     in
     Set.filter (Predicate.check isCollision) set
         |> Moves
 
 
-outOfBoundsRule : Predicate Position OutOfBounds -> Moves All -> Moves Illegal
+outOfBoundsRule : Predicate Position -> Moves All -> Moves Illegal
 outOfBoundsRule isOutOfBounds (Moves allMoves) =
     Set.filter (Predicate.check isOutOfBounds) allMoves
         |> Moves
 
 
-attackOwnPieceRule : Predicate Position BelongsToPlayer -> Moves All -> Moves Illegal
+attackOwnPieceRule : Predicate Position -> Moves All -> Moves Illegal
 attackOwnPieceRule belongsToPlayer (Moves allMoves) =
     Set.filter (Predicate.check belongsToPlayer) allMoves
         |> Moves
@@ -358,10 +421,10 @@ attackOwnPieceRule belongsToPlayer (Moves allMoves) =
 
 pawn :
     { player : Player
-    , belongsToPlayer : Predicate Position BelongsToPlayer
-    , isBlank : Predicate Position IsBlank
-    , collision : Predicate Position IsCollision
-    , outOfBounds : Predicate Position OutOfBounds
+    , belongsToPlayer : Predicate Position
+    , isBlank : Predicate Position
+    , collision : Predicate Position
+    , outOfBounds : Predicate Position
     , hasMoved : Bool
     , position :
         Position
@@ -378,7 +441,13 @@ pawn { player, belongsToPlayer, isBlank, collision, outOfBounds, hasMoved, posit
                 , pawnAttackRules isBlank position
                 , pawnDirectionRule player position
                 , pawnDoubleMoveRule hasMoved position
+                , outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
+                , collisionRule
+                    { isCollision = collision
+                    , position = position
+                    , allMoves = all
+                    }
                 ]
     in
     remove illegalMoves all
@@ -387,14 +456,14 @@ pawn { player, belongsToPlayer, isBlank, collision, outOfBounds, hasMoved, posit
 allPawn : Position -> Moves All
 allPawn ( x, y ) =
     Set.fromList
-        [ ( x + 1, y + 1 )
-        , ( x + 1, y - 1 )
-        , ( x + 2, y )
-        , ( x + 1, y )
+        [ ( x, y + 1 )
+        , ( x, y + 2 )
+        , ( x, y - 1 )
+        , ( x, y - 2 )
+        , ( x + 1, y + 1 )
         , ( x - 1, y + 1 )
+        , ( x + 1, y - 1 )
         , ( x - 1, y - 1 )
-        , ( x - 2, y )
-        , ( x - 1, y )
         ]
         |> Moves
 
@@ -404,12 +473,13 @@ allPawn ( x, y ) =
 
 
 queen :
-    { belongsToPlayer : Predicate Position BelongsToPlayer
-    , outOfBounds : Predicate Position OutOfBounds
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
+    , collision : Predicate Position
     , position : Position
     }
     -> Moves Valid
-queen { belongsToPlayer, outOfBounds, position } =
+queen { belongsToPlayer, outOfBounds, collision, position } =
     let
         all =
             allQueen position
@@ -418,6 +488,11 @@ queen { belongsToPlayer, outOfBounds, position } =
             rules
                 [ outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
+                , collisionRule
+                    { isCollision = collision
+                    , position = position
+                    , allMoves = all
+                    }
                 ]
     in
     remove illegalMoves all
@@ -455,12 +530,13 @@ allQueen ( x, y ) =
 
 
 rook :
-    { belongsToPlayer : Predicate Position BelongsToPlayer
-    , outOfBounds : Predicate Position OutOfBounds
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
     , position : Position
+    , collision : Predicate Position
     }
     -> Moves Valid
-rook { belongsToPlayer, outOfBounds, position } =
+rook { belongsToPlayer, outOfBounds, position, collision } =
     let
         all =
             allRook position
@@ -469,6 +545,11 @@ rook { belongsToPlayer, outOfBounds, position } =
             rules
                 [ outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
+                , collisionRule
+                    { isCollision = collision
+                    , position = position
+                    , allMoves = all
+                    }
                 ]
     in
     remove illegalMoves all
