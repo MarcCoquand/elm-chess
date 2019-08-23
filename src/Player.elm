@@ -1,6 +1,7 @@
-module Player exposing (Player(..), display, next)
+module Player exposing (Player(..), display, equal, isOpponent, next)
 
 import Element exposing (Element)
+import Predicate exposing (Predicate)
 
 
 type Player
@@ -26,6 +27,16 @@ show player =
 
         Black ->
             "Black"
+
+
+equal : Player -> Player -> Bool
+equal p1 p2 =
+    p1 == p2
+
+
+isOpponent : Player -> Player -> Bool
+isOpponent p1 p2 =
+    p1 /= p2
 
 
 display : Player -> Element msg

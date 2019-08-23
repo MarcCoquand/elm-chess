@@ -43,8 +43,8 @@ member { x, y } positions =
     Set.member ( x, y ) positions
 
 
-getStepCloser : { start : Position, end : Position } -> Position
-getStepCloser { start, end } =
+stepCloser : { start : Position, end : Position } -> Position
+stepCloser { start, end } =
     let
         ( xStart, yStart ) =
             start
@@ -81,7 +81,7 @@ isClosest :
     }
     -> Bool
 isClosest { isCollision, start, end } =
-    case getStepCloser { start = start, end = end } of
+    case stepCloser { start = start, end = end } of
         ( 0, 0 ) ->
             True
 
@@ -93,14 +93,3 @@ isClosest { isCollision, start, end } =
                         start
                     , end = ( x, y )
                     }
-
-
-
--- behind : Position -> Position -> Bool
--- behind current toCheck  =
--- let
--- (x,y) =
--- (current.x - toCheck.x, current.y - toCheck.y)
--- in
--- case (x,y) of
--- x < 0 && y < 0 ->

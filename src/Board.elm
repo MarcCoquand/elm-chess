@@ -9,6 +9,7 @@ module Board exposing
     , isWithinRange
     , makeIndex
     , numberList
+    , positions
     , set
     , size
     , toIndexedList
@@ -151,6 +152,17 @@ inBounds coord =
 isWithinRange : ( Int, Int ) -> ( Int, Int ) -> Bool
 isWithinRange ( c1, c2 ) ( c3, c4 ) =
     c1 <= c3 && c2 <= c4 && c1 > 0 && c2 > 0
+
+
+positions : List Position
+positions =
+    let
+        row column =
+            List.range 0 7
+                |> List.map (\r -> Position.make { x = r, y = column })
+    in
+    List.range 0 7
+        |> List.concatMap row
 
 
 get : Board square -> Position -> Maybe square

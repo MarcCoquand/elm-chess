@@ -1,6 +1,23 @@
-module Square exposing (Get, Square(..), belongs, blank, blue, check, checkPiece, collision, extractPlayer, get, getBelongingTo, highlighter, isOpponent, pieceThreatened, swapLeft, swapRight, updatePiece, view, white)
+module Square exposing
+    ( Square(..)
+    , apply
+    , applyIfOwner
+    , belongs
+    , blank
+    , blue
+    , canSwapLeft
+    , canSwapRight
+    , check
+    , checkPiece
+    , collision
+    , highlighter
+    , isOpponentOf
+    , setup
+    , updatePiece
+    , view
+    , white
+    )
 
-import Board exposing (Board)
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
@@ -15,12 +32,8 @@ import Predicate exposing (Predicate)
 
 
 type Square
-    = Blank
+    = Empty
     | Contains Player Piece
-
-
-type alias Get =
-    Position -> Maybe Square
 
 
 white =
@@ -42,7 +55,7 @@ highlighter enabled =
 view : { highlight : Bool, square : Square, onClick : msg } -> Element msg
 view { highlight, square, onClick } =
     case square of
-        Blank ->
+        Empty ->
             Input.button
                 [ highlighter highlight
                 , Border.solid
@@ -55,64 +68,68 @@ view { highlight, square, onClick } =
                 { onPress = Just onClick, label = Piece.view player piece }
 
 
-extractPlayer : Square -> Maybe Player
-extractPlayer square =
+toMaybe : Square -> Maybe ( Player, Piece )
+toMaybe square =
     case square of
-        Blank ->
-            Nothing
-
-        Contains player _ ->
-            Just player
-
-
-get : Square -> Maybe ( Player, Piece )
-get square =
-    case square of
-        Blank ->
+        Empty ->
             Nothing
 
         Contains player piece ->
             Just ( player, piece )
 
 
-isOpponent : Player -> Square -> Bool
-isOpponent player square =
-    extractPlayer square
-        |> Maybe.map (\owner -> owner /= player)
-        |> Maybe.withDefault False
+isOpponentOf : Player -> Square -> Bool
+isOpponentOf player square =
+    case square of
+        Empty ->
+            False
 
-
-getBelongingTo : Player -> Square -> Maybe ( Player, Piece )
-getBelongingTo player square =
-    get square
-        |> Maybe.andThen
-            (\( owner, piece ) ->
-                if player == owner then
-                    Just ( player, piece )
-
-                else
-                    Nothing
-            )
+        Contains owner _ ->
+            owner /= player
 
 
 updatePiece : Square -> Square
 updatePiece square =
     case square of
-        Blank ->
-            Blank
+        Empty ->
+            Empty
 
         Contains player piece ->
             Contains player (Piece.update piece)
 
 
+applyIfOwner : Player -> (Player -> Piece -> a) -> Square -> Maybe a
+applyIfOwner player f square =
+    case square of
+        Contains owner piece ->
+            if owner == player then
+                Just (f owner piece)
 
--- CONDITIONS
+            else
+                Nothing
+
+        Empty ->
+            Nothing
+
+
+apply : (Player -> Piece -> a) -> Square -> Maybe a
+apply f square =
+    case square of
+        Contains player piece ->
+            Just (f player piece)
+
+        Empty ->
+            Nothing
+
+
+
+-- PREDICATES
 
 
 belongs : Player -> Square -> Bool
 belongs player square =
     case square of
-        Blank ->
+        Empty ->
             False
 
         Contains owner _ ->
@@ -122,7 +139,7 @@ belongs player square =
 blank : Square -> Bool
 blank square =
     case square of
-        Blank ->
+        Empty ->
             True
 
         Contains _ _ ->
@@ -132,106 +149,129 @@ blank square =
 collision : Square -> Bool
 collision square =
     case square of
-        Blank ->
+        Empty ->
             False
 
         Contains _ _ ->
             True
 
 
-check : (Square -> Bool) -> (Position -> Maybe Square) -> Position -> Bool
-check condition getter position =
-    getter position
-        |> Maybe.map condition
-        |> Maybe.withDefault False
-
-
-checkPiece : { getter : Get, position : Position, condition : ( Player, Piece ) -> Bool } -> Bool
-checkPiece { getter, position, condition } =
-    getter position
-        |> Maybe.andThen get
-        |> Maybe.map condition
-        |> Maybe.withDefault False
-
-
-swapRight : Get -> Player -> Position -> Bool
-swapRight getter player ( x, y ) =
+canSwapRight : (Position -> Maybe Square) -> Player -> Predicate Position
+canSwapRight fromBoard player ( x, y ) =
     let
         blankSide =
-            List.all (check blank getter) [ ( x + 1, y ), ( x + 2, y ) ]
+            List.all (check fromBoard blank) [ ( x + 1, y ), ( x + 2, y ) ]
 
         isUnmovedRook =
             checkPiece
-                { getter = getter
-                , position = ( x + 3, y )
-                , condition =
-                    \( owner, piece ) ->
-                        owner == player && Piece.isUnmovedRook piece
-                }
+                fromBoard
+                (Player.equal player)
+                Piece.isUnmovedRook
+                ( x + 3, y )
 
         isUnmovedKing =
             checkPiece
-                { getter = getter
-                , position = ( x, y )
-                , condition =
-                    \( owner, piece ) ->
-                        owner == player && Piece.isUnmovedKing piece
-                }
+                fromBoard
+                (Player.equal player)
+                Piece.isUnmovedKing
+                ( x, y )
     in
     blankSide && isUnmovedRook && isUnmovedKing
 
 
-swapLeft : Get -> Player -> Position -> Bool
-swapLeft getter player ( x, y ) =
+canSwapLeft : (Position -> Maybe Square) -> Player -> Predicate Position
+canSwapLeft getSquare player ( x, y ) =
     let
         blankSide =
-            List.all (check blank getter) [ ( x - 1, y ), ( x - 2, y ), ( x - 3, y ) ]
+            List.all (check getSquare blank) [ ( x - 1, y ), ( x - 2, y ), ( x - 3, y ) ]
 
         isUnmovedRook =
             checkPiece
-                { getter = getter
-                , position = ( x - 4, y )
-                , condition =
-                    \( owner, piece ) ->
-                        owner == player && Piece.isUnmovedRook piece
-                }
+                getSquare
+                (Player.equal player)
+                Piece.isUnmovedRook
+                ( x - 4, y )
 
         isUnmovedKing =
             checkPiece
-                { getter = getter
-                , position = ( x, y )
-                , condition =
-                    \( owner, piece ) ->
-                        owner == player && Piece.isUnmovedKing piece
-                }
+                getSquare
+                (Player.equal player)
+                Piece.isUnmovedKing
+                ( x, y )
     in
     blankSide && isUnmovedRook && isUnmovedKing
 
 
-pieceThreatened : Board Square -> Player -> Position -> Bool
-pieceThreatened board player position =
+check : (Position -> Maybe Square) -> Predicate Square -> Predicate Position
+check getSquare predicate =
+    Predicate.withDefault False getSquare predicate
+
+
+checkPiece :
+    (Position -> Maybe Square)
+    -> Predicate Player
+    -> Predicate Piece
+    -> Predicate Position
+checkPiece fromBoard playerPredicate piecePredicate =
     let
-        opponent =
-            Player.next player
-
-        withPosition boardPosition maybeSquare =
-            Maybe.map (\square -> ( boardPosition, square )) maybeSquare
-
-        isInRangeOf enemyMoves =
-            Moves.rules enemyMoves
-                |> Moves.member position
-
-        opponentsRange =
-            Board.toIndexedList board
-                |> List.filterMap
-                    (\( boardPosition, square ) ->
-                        getBelongingTo opponent square
-                            |> withPosition boardPosition
-                    )
-                |> List.filterMap
-                    (\( boardPosition, _ ) ->
-                        moves board
-                            boardPosition
-                    )
+        squarePredicate =
+            Predicate.divideWithDefault False toMaybe playerPredicate piecePredicate
     in
-    isInRangeOf opponentsRange
+    Predicate.withDefault False fromBoard squarePredicate
+
+
+
+-- BOARD
+
+
+setup : List (List Square)
+setup =
+    let
+        wPa =
+            Contains White (Piece.Pawn False)
+
+        wKn =
+            Contains White Piece.Knight
+
+        wKi =
+            Contains White (Piece.King False)
+
+        wRo =
+            Contains White (Piece.Rook False)
+
+        wBi =
+            Contains White Piece.Bishop
+
+        wQu =
+            Contains White Piece.Queen
+
+        bPa =
+            Contains Black (Piece.Pawn False)
+
+        bKn =
+            Contains Black Piece.Knight
+
+        bKi =
+            Contains Black (Piece.King False)
+
+        bRo =
+            Contains Black (Piece.Rook False)
+
+        bBi =
+            Contains Black Piece.Bishop
+
+        bQu =
+            Contains Black Piece.Queen
+
+        ooo =
+            Empty
+    in
+    [ [ wRo, wKn, wBi, wKi, wQu, wBi, wKn, wRo ]
+    , [ wPa, wPa, wPa, wPa, wPa, wPa, wPa, wPa ]
+    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
+    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
+    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
+    , [ ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo ]
+    , [ bPa, bPa, bPa, bPa, bPa, bPa, bPa, bPa ]
+    , [ bRo, bKn, bBi, bKi, bQu, bBi, bKn, bRo ]
+    ]

@@ -5,11 +5,15 @@ module Piece exposing
     , isUnmovedRook
     , show
     , update
+    , validMoves
     , view
     )
 
 import Element exposing (Element)
+import Moves exposing (Moves, Valid)
 import Player exposing (Player(..))
+import Position exposing (Position)
+import Predicate exposing (Predicate)
 import Set exposing (Set)
 
 
@@ -71,6 +75,74 @@ update piece =
 view : Player -> Piece -> Element msg
 view player piece =
     Element.text (show player piece)
+
+
+validMoves :
+    { blank : Predicate Position
+    , collision : Predicate Position
+    , outOfBounds : Predicate Position
+    , swapRight : Predicate Position
+    , swapLeft : Predicate Position
+    , threatened : Predicate Position
+    , belongsToPlayer : Predicate Position
+    }
+    -> Position
+    -> Player
+    -> Piece
+    -> Moves Valid
+validMoves predicate position player piece =
+    case piece of
+        Pawn hasMoved ->
+            Moves.pawn
+                { player = player
+                , belongsToPlayer = predicate.belongsToPlayer
+                , isBlank = predicate.blank
+                , collision = predicate.collision
+                , outOfBounds = predicate.outOfBounds
+                , hasMoved = hasMoved
+                , position = position
+                }
+
+        Rook _ ->
+            Moves.rook
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = position
+                , collision = predicate.collision
+                }
+
+        King _ ->
+            Moves.king
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , isThreatened = predicate.threatened
+                , position = position
+                , swapRight = predicate.swapRight
+                , swapLeft = predicate.swapLeft
+                }
+
+        Queen ->
+            Moves.queen
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = position
+                , collision = predicate.collision
+                }
+
+        Bishop ->
+            Moves.bishop
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = position
+                , collision = predicate.collision
+                }
+
+        Knight ->
+            Moves.knight
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = position
+                }
 
 
 show : Player -> Piece -> String
