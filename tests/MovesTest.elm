@@ -4,22 +4,19 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Moves exposing (Moves, Valid)
 import Player
+import Position exposing (Position)
 import Predicate exposing (Predicate)
 import Test exposing (..)
 
 
-type alias Position =
-    ( Int, Int )
-
-
 alwaysTrue : Predicate Position
 alwaysTrue =
-    Predicate.make (\_ -> True)
+    \_ -> True
 
 
 alwaysFalse : Predicate Position
 alwaysFalse =
-    Predicate.make (\_ -> False)
+    \_ -> False
 
 
 boardMin =
@@ -42,10 +39,11 @@ inRange ( x, y ) =
         <= boardMax
 
 
-positionGenerator : Fuzzer ( Int, Int )
+positionGenerator : Fuzzer Position
 positionGenerator =
     Fuzz.tuple
         ( Fuzz.intRange boardMin boardMax, Fuzz.intRange boardMin boardMax )
+        |> Fuzz.map (\( x, y ) -> Position.make { x = x, y = y })
 
 
 members : List Position -> Moves Valid -> Bool
@@ -74,7 +72,7 @@ pawn =
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> members
                         [ ( x, y - 1 )
@@ -92,7 +90,7 @@ pawn =
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> members
                         [ ( x, y + 1 )
@@ -111,7 +109,7 @@ pawn =
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> any
                         [ ( x, y - 1 )
@@ -123,25 +121,24 @@ pawn =
                 Moves.pawn
                     { player = Player.White
                     , belongsToPlayer = alwaysFalse
-                    , isBlank =
-                        Predicate.make (\_ -> True)
+                    , isBlank = alwaysFalse
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
-                    |> Moves.member ( x, y + 2 )
+                    |> Moves.member (Position.make { x = x, y = y + 2 })
                     |> Expect.equal True
         , fuzz positionGenerator "Pawn can not move two if moved before" <|
             \( x, y ) ->
                 Moves.pawn
                     { player = Player.White
                     , belongsToPlayer = alwaysFalse
-                    , isBlank = alwaysTrue
+                    , isBlank = alwaysFalse
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = True
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> Moves.member ( x, y + 2 )
                     |> Expect.equal False
@@ -154,7 +151,7 @@ pawn =
                     , collision = alwaysFalse
                     , outOfBounds = alwaysFalse
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> any
                         [ ( x - 1, y - 1 )
@@ -170,7 +167,7 @@ pawn =
                     , collision = alwaysFalse
                     , outOfBounds = Predicate.make (not << inRange)
                     , hasMoved = False
-                    , position = ( x, y )
+                    , position = Position.make { x = x, y = y }
                     }
                     |> Moves.checkAll inRange
                     |> Expect.equal True
@@ -180,26 +177,13 @@ pawn =
 bishop : Test
 bishop =
     describe "Ensure bishop moves correctly"
-        [ fuzz positionGenerator "bishop can never move forward" <|
-            \( x, y ) ->
-                Moves.bishop
-                    { belongsToPlayer = alwaysFalse
-                    , outOfBounds = alwaysFalse
-                    , position = ( x, y )
-                    , isCollision = alwaysFalse
-                    }
-                    |> any
-                        [ ( x, y - 1 )
-                        , ( x, y + 1 )
-                        ]
-                    |> Expect.equal False
-        , fuzz positionGenerator "bishop can never move out of bounds" <|
+        [ fuzz positionGenerator "bishop can never move out of bounds" <|
             \( x, y ) ->
                 Moves.bishop
                     { belongsToPlayer = alwaysFalse
                     , outOfBounds = Predicate.make (not << inRange)
-                    , position = ( x, y )
-                    , isCollision = alwaysFalse
+                    , position = Position.make { x = x, y = y }
+                    , collision = alwaysFalse
                     }
                     |> Moves.checkAll inRange
                     |> Expect.equal True

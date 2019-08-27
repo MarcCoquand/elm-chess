@@ -39,8 +39,8 @@ makeMany positions =
 
 
 member : { x : Int, y : Int } -> Set Position -> Bool
-member { x, y } positions =
-    Set.member ( x, y ) positions
+member coordinate positions =
+    Set.member (make coordinate) positions
 
 
 stepCloser : { start : Position, end : Position } -> Position
@@ -49,23 +49,23 @@ stepCloser { start, end } =
         ( xStart, yStart ) =
             start
 
-        ( xEnd, yEnd ) =
+        ( x, y ) =
             end
 
-        ( x, y ) =
-            ( xStart - xEnd, yStart - yEnd )
+        ( differenceX, differenceY ) =
+            ( xStart - x, yStart - y )
 
-        getCloser c =
-            if c > 0 then
-                c - 1
+        getCloser difference n =
+            if difference < 0 then
+                n - 1
 
-            else if c < 0 then
-                c + 1
+            else if difference > 0 then
+                n + 1
 
             else
-                c
+                n
     in
-    ( getCloser x, getCloser y )
+    ( getCloser differenceX x, getCloser differenceY y )
 
 
 {-|
@@ -81,15 +81,18 @@ isClosest :
     }
     -> Bool
 isClosest { isCollision, start, end } =
-    case stepCloser { start = start, end = end } of
-        ( 0, 0 ) ->
-            True
+    let
+        ( x, y ) =
+            stepCloser { start = start, end = end }
+    in
+    if ( x, y ) == start then
+        True
 
-        ( x, y ) ->
-            Predicate.check isCollision ( x, y )
-                && isClosest
-                    { isCollision = isCollision
-                    , start =
-                        start
-                    , end = ( x, y )
-                    }
+    else
+        not (isCollision ( x, y ))
+            && isClosest
+                { isCollision = isCollision
+                , start =
+                    start
+                , end = ( x, y )
+                }

@@ -1,4 +1,4 @@
-module ChessBoard exposing (ChessBoard, init, select)
+module ChessBoard exposing (ChessBoard, Selected, init, move, select)
 
 import Board exposing (Board)
 import Moves exposing (Moves, Valid)
@@ -9,19 +9,36 @@ import Predicate exposing (Predicate)
 import Square exposing (Square)
 
 
+type alias Selected =
+    { position : Position
+    , player : Player
+    , piece : Piece
+    , moves : Moves Valid
+    }
+
+
 type alias ChessBoard =
     Board Square
 
 
-findMoves : Board Square -> Position -> Player -> Piece -> Moves Valid
+findMoves : ChessBoard -> Position -> Player -> Piece -> Moves Valid
 findMoves board position player piece =
     Piece.validMoves
         { blank = Square.check (Board.get board) Square.blank
         , collision = Square.check (Board.get board) Square.collision
-        , outOfBounds = Board.inBounds
+        , outOfBounds = not << Board.inBounds
         , swapRight = Square.canSwapRight (Board.get board) player
         , swapLeft = Square.canSwapLeft (Board.get board) player
-        , threatened = threatened board player
+        , threatened =
+            \to ->
+                threatened
+                    { board = board
+                    , player = player
+                    , piece =
+                        piece
+                    , start = position
+                    , attempt = to
+                    }
         , belongsToPlayer = Square.check (Board.get board) (Square.belongs player)
         }
         position
@@ -29,37 +46,128 @@ findMoves board position player piece =
         piece
 
 
-select : Board Square -> Player -> Position -> Maybe ( Square, Moves Valid )
+findMovesNoThreat : ChessBoard -> Position -> Player -> Piece -> Moves Valid
+findMovesNoThreat board position player piece =
+    Piece.validMoves
+        { blank = Square.check (Board.get board) Square.blank
+        , collision = Square.check (Board.get board) Square.collision
+        , outOfBounds = not << Board.inBounds
+        , swapRight = Square.canSwapRight (Board.get board) player
+        , swapLeft = Square.canSwapLeft (Board.get board) player
+        , threatened = \_ -> False
+        , belongsToPlayer = Square.check (Board.get board) (Square.belongs player)
+        }
+        position
+        player
+        piece
+
+
+select : ChessBoard -> Player -> Position -> Maybe Selected
 select board player position =
     let
-        squareMovesPair owner piece =
-            ( Square.Contains owner piece
-            , findMoves board position owner piece
-            )
+        selected owner piece =
+            { position = position
+            , player = owner
+            , moves = findMoves board position owner piece
+            , piece = piece
+            }
     in
     Board.get board position
-        |> Maybe.andThen (Square.applyIfOwner player squareMovesPair)
+        |> Maybe.andThen (Square.applyIfOwner player selected)
 
 
-threatened : Board Square -> Player -> Position -> Bool
-threatened board player position =
+simulateSelect : ChessBoard -> Player -> Position -> Maybe Selected
+simulateSelect board player position =
+    let
+        selected owner piece =
+            { position = position
+            , player = owner
+            , moves = findMovesNoThreat board position owner piece
+            , piece = piece
+            }
+    in
+    Board.get board position
+        |> Maybe.andThen (Square.applyIfOwner player selected)
+
+
+move :
+    List { ownedPiece : ( Player, Piece ), from : Position, to : Position }
+    -> ChessBoard
+    -> ChessBoard
+move pieces board =
+    let
+        makeSquare ( player, piece ) =
+            Square.Contains player (Piece.update piece)
+
+        changes =
+            List.concatMap
+                (\{ ownedPiece, from, to } ->
+                    [ ( to, makeSquare ownedPiece )
+                    , ( from, Square.Empty )
+                    ]
+                )
+                pieces
+    in
+    Board.update changes board
+
+
+threatened : { board : ChessBoard, player : Player, piece : Piece, start : Position, attempt : Position } -> Bool
+threatened { board, player, piece, start, attempt } =
     let
         opponent =
             Player.next player
 
-        isInRangeOf enemyMoves =
-            Moves.rules enemyMoves
-                |> Moves.member position
-
-        omitSquare =
-            Maybe.map (\( _, moves ) -> moves)
+        simulateBoard =
+            move [ { ownedPiece = ( player, piece ), from = start, to = attempt } ]
+                board
 
         opponentsRange =
-            List.filterMap (select board opponent >> omitSquare) Board.positions
+            List.filterMap (simulateSelect simulateBoard opponent >> Maybe.map .moves) Board.positions
     in
-    isInRangeOf opponentsRange
+    opponentsRange
+        |> Moves.contains attempt
 
 
-init : Maybe (Board Square)
+kingPosition : ChessBoard -> Player -> Position -> Bool
+kingPosition board player position =
+    Square.checkPiece
+        (Board.get board)
+        ((==) player)
+        Piece.isKing
+        position
+
+
+victory : ChessBoard -> Player -> Bool
+victory board player =
+    let
+        opponent =
+            Player.next player
+
+        range =
+            -- This is an indicator that we have the wrong abstraction, it's
+            -- impossible that the king does not exist!
+            List.filterMap (select board opponent >> Maybe.map .moves) Board.positions
+
+        maybeKingPosition =
+            Board.positions
+                |> List.filter (kingPosition board player)
+                |> List.head
+
+        kingMoves piece =
+            Maybe.map
+                (\position ->
+                    findMoves board position opponent piece
+                )
+    in
+    case maybeKingPosition of
+        Just kp ->
+            Moves.contains kp range
+
+        Nothing ->
+            False
+
+
+init : Maybe ChessBoard
 init =
-    Board.construct Square.setup
+    Square.placeAll
+        |> Board.construct

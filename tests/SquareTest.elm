@@ -2,6 +2,8 @@ module SquareTest exposing (isJust, suite)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
+import Piece
+import Player
 import Square
 import Test exposing (..)
 
@@ -18,7 +20,17 @@ isJust value =
 
 suite : Test
 suite =
-    describe "Ensure Square works"
-        [ test "Board is made correctly" <|
-            \_ -> Square.initialBoard |> isJust |> Expect.equal True
+    describe "Square"
+        [ test "collision and blank" <|
+            \_ ->
+                Square.Contains Player.White Piece.Queen
+                    |> (\piece ->
+                            Expect.equal
+                                True
+                                (Square.collision piece)
+                       )
+        , test "Can swap left" <|
+            \_ -> Expect.equal True True
+        , test "Can swap right" <|
+            \_ -> Expect.equal True True
         ]

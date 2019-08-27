@@ -26,13 +26,6 @@ make predicate =
     predicate
 
 
-
--- There might be a neater abstraction to combine multiple predicates and so are
--- kept but not used
-
-
-{-| This might allow for neater solution to combining predicates in the future
--}
 contramap : (a -> c) -> Predicate c -> Predicate a
 contramap cf checker =
     \a ->
@@ -54,8 +47,6 @@ choose cf bCondition cCondition =
                 check cCondition c
 
 
-{-| This might allow for a neater solution to combining predicates in the future
--}
 divide : (a -> ( c, d )) -> Predicate c -> Predicate d -> Predicate a
 divide cf cCondition dCondition =
     \a ->

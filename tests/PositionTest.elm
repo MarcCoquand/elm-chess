@@ -49,7 +49,7 @@ suite =
             \_ ->
                 Position.isClosest
                     { isCollision = isCollision
-                    , start = Position.make { x = 1, y = 0 }
+                    , start = Position.make { x = 0, y = 0 }
                     , end = Position.make { x = 2, y = 2 }
                     }
                     |> Expect.equal False

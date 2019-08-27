@@ -1,6 +1,7 @@
 module Piece exposing
     ( HasMoved
     , Piece(..)
+    , isKing
     , isUnmovedKing
     , isUnmovedRook
     , show
@@ -45,6 +46,16 @@ isUnmovedKing piece =
     case piece of
         King hasMoved ->
             not hasMoved
+
+        _ ->
+            False
+
+
+isKing : Piece -> Bool
+isKing piece =
+    case piece of
+        King _ ->
+            True
 
         _ ->
             False

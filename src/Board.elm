@@ -135,7 +135,7 @@ size =
     8
 
 
-upperBound : Board e -> ( Int, Int )
+upperBound : Board e -> Position
 upperBound (CreateBoard board) =
     let
         upper =
@@ -144,14 +144,14 @@ upperBound (CreateBoard board) =
     ( upper, upper )
 
 
-inBounds : ( Int, Int ) -> Bool
+inBounds : Position -> Bool
 inBounds coord =
     isWithinRange coord ( size, size )
 
 
-isWithinRange : ( Int, Int ) -> ( Int, Int ) -> Bool
+isWithinRange : Position -> Position -> Bool
 isWithinRange ( c1, c2 ) ( c3, c4 ) =
-    c1 <= c3 && c2 <= c4 && c1 > 0 && c2 > 0
+    c1 < c3 && c2 < c4 && c1 >= 0 && c2 >= 0
 
 
 positions : List Position

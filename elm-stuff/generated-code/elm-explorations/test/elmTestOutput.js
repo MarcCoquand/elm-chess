@@ -3258,8 +3258,7 @@ var author$project$Moves$allBishop = function (position) {
 				_Utils_ap(positiveDiagonal, negativeDiagonal))));
 };
 var author$project$Predicate$check = F2(
-	function (_n0, value) {
-		var checker = _n0.a;
+	function (checker, value) {
 		return checker(value);
 	});
 var elm$core$Dict$filter = F2(
@@ -3294,48 +3293,46 @@ var author$project$Moves$attackOwnPieceRule = F2(
 				author$project$Predicate$check(belongsToPlayer),
 				allMoves));
 	});
-var author$project$Position$getStepCloser = function (_n0) {
+var author$project$Position$stepCloser = function (_n0) {
 	var start = _n0.start;
 	var end = _n0.end;
-	var getCloser = function (c) {
-		return (c > 0) ? (c - 1) : ((c < 0) ? (c + 1) : c);
-	};
+	var getCloser = F2(
+		function (difference, n) {
+			return (difference < 0) ? (n - 1) : ((difference > 0) ? (n + 1) : n);
+		});
 	var _n1 = start;
 	var xStart = _n1.a;
 	var yStart = _n1.b;
 	var _n2 = end;
-	var xEnd = _n2.a;
-	var yEnd = _n2.b;
-	var _n3 = _Utils_Tuple2(xStart - xEnd, yStart - yEnd);
-	var x = _n3.a;
-	var y = _n3.b;
+	var x = _n2.a;
+	var y = _n2.b;
+	var _n3 = _Utils_Tuple2(xStart - x, yStart - y);
+	var differenceX = _n3.a;
+	var differenceY = _n3.b;
 	return _Utils_Tuple2(
-		getCloser(x),
-		getCloser(y));
+		A2(getCloser, differenceX, x),
+		A2(getCloser, differenceY, y));
 };
 var elm$core$Basics$True = {$: 'True'};
 var elm$core$Basics$and = _Basics_and;
+var elm$core$Basics$not = _Basics_not;
 var author$project$Position$isClosest = function (_n0) {
 	var isCollision = _n0.isCollision;
 	var start = _n0.start;
 	var end = _n0.end;
-	var _n1 = author$project$Position$getStepCloser(
+	var _n1 = author$project$Position$stepCloser(
 		{end: end, start: start});
-	if ((!_n1.a) && (!_n1.b)) {
-		return true;
-	} else {
-		var x = _n1.a;
-		var y = _n1.b;
-		return A2(
-			author$project$Predicate$check,
-			isCollision,
-			_Utils_Tuple2(x, y)) && author$project$Position$isClosest(
-			{
-				end: _Utils_Tuple2(x, y),
-				isCollision: isCollision,
-				start: start
-			});
-	}
+	var x = _n1.a;
+	var y = _n1.b;
+	return _Utils_eq(
+		_Utils_Tuple2(x, y),
+		start) ? true : ((!isCollision(
+		_Utils_Tuple2(x, y))) && author$project$Position$isClosest(
+		{
+			end: _Utils_Tuple2(x, y),
+			isCollision: isCollision,
+			start: start
+		}));
 };
 var author$project$Moves$collisionRule = function (_n0) {
 	var isCollision = _n0.isCollision;
@@ -3346,9 +3343,9 @@ var author$project$Moves$collisionRule = function (_n0) {
 	return author$project$Moves$Moves(
 		A2(
 			elm$core$Set$filter,
-			function (el) {
-				return author$project$Position$isClosest(
-					{end: el, isCollision: isCollision, start: position});
+			function (element) {
+				return !author$project$Position$isClosest(
+					{end: element, isCollision: isCollision, start: position});
 			},
 			all));
 };
@@ -3391,7 +3388,7 @@ var author$project$Moves$rules = A2(elm$core$List$foldl, author$project$Moves$un
 var author$project$Moves$bishop = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
-	var isCollision = _n0.isCollision;
+	var collision = _n0.collision;
 	var position = _n0.position;
 	var all = author$project$Moves$allBishop(position);
 	var illegalMoves = author$project$Moves$rules(
@@ -3400,7 +3397,7 @@ var author$project$Moves$bishop = function (_n0) {
 				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
 				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
 				author$project$Moves$collisionRule(
-				{allMoves: all, isCollision: isCollision, position: position})
+				{allMoves: all, isCollision: collision, position: position})
 			]));
 	return A2(author$project$Moves$remove, illegalMoves, all);
 };
@@ -3409,7 +3406,6 @@ var elm$core$Basics$composeL = F3(
 		return g(
 			f(x));
 	});
-var elm$core$Basics$not = _Basics_not;
 var author$project$Moves$checkAll = F2(
 	function (condition, _n0) {
 		var moves = _n0.a;
@@ -3421,101 +3417,10 @@ var author$project$Moves$checkAll = F2(
 				A2(elm$core$Basics$composeL, elm$core$Basics$not, condition),
 				moves));
 	});
-var author$project$Predicate$Predicate = function (a) {
-	return {$: 'Predicate', a: a};
-};
-var author$project$Predicate$make = function (predicate) {
-	return author$project$Predicate$Predicate(predicate);
-};
 var elm$core$Basics$False = {$: 'False'};
-var author$project$MovesTest$alwaysFalse = author$project$Predicate$make(
-	function (_n0) {
-		return false;
-	});
-var elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
+var author$project$MovesTest$alwaysFalse = function (_n0) {
+	return false;
 };
-var elm$core$Maybe$Nothing = {$: 'Nothing'};
-var elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
-				switch (_n1.$) {
-					case 'LT':
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 'EQ':
-						return elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
-var elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _n0 = A2(elm$core$Dict$get, key, dict);
-		if (_n0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
-var elm$core$Set$member = F2(
-	function (key, _n0) {
-		var dict = _n0.a;
-		return A2(elm$core$Dict$member, key, dict);
-	});
-var author$project$Moves$member = F2(
-	function (position, _n0) {
-		var move = _n0.a;
-		return A2(elm$core$Set$member, position, move);
-	});
-var elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
-				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
-				}
-			}
-		}
-	});
-var author$project$MovesTest$any = F2(
-	function (position, moves) {
-		return A2(
-			elm$core$List$any,
-			function (pos) {
-				return A2(author$project$Moves$member, pos, moves);
-			},
-			position);
-	});
 var author$project$MovesTest$boardMax = 7;
 var author$project$MovesTest$boardMin = 0;
 var elm$core$Basics$ge = _Utils_ge;
@@ -3531,6 +3436,10 @@ var elm$core$Basics$apL = F2(
 var elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
+var elm$core$Maybe$Just = function (a) {
+	return {$: 'Just', a: a};
+};
+var elm$core$Maybe$Nothing = {$: 'Nothing'};
 var elm$core$String$fromInt = _String_fromNumber;
 var elm$random$Random$Generator = function (a) {
 	return {$: 'Generator', a: a};
@@ -3834,6 +3743,40 @@ var elm_explorations$test$Fuzz$intRange = F2(
 				},
 				elm_explorations$test$Shrink$int));
 	});
+var elm$core$Result$map = F2(
+	function (func, ra) {
+		if (ra.$ === 'Ok') {
+			var a = ra.a;
+			return elm$core$Result$Ok(
+				func(a));
+		} else {
+			var e = ra.a;
+			return elm$core$Result$Err(e);
+		}
+	});
+var elm_explorations$test$RoseTree$map = F2(
+	function (f, _n0) {
+		var a = _n0.a;
+		var c = _n0.b;
+		return A2(
+			elm_explorations$test$RoseTree$Rose,
+			f(a),
+			A2(
+				elm_explorations$test$Lazy$List$map,
+				elm_explorations$test$RoseTree$map(f),
+				c));
+	});
+var elm_explorations$test$Fuzz$Internal$map = F2(
+	function (fn, fuzzer) {
+		return A2(
+			A2(
+				elm$core$Basics$composeL,
+				A2(elm$core$Basics$composeL, elm$core$Result$map, elm$random$Random$map),
+				elm_explorations$test$RoseTree$map),
+			fn,
+			fuzzer);
+	});
+var elm_explorations$test$Fuzz$map = elm_explorations$test$Fuzz$Internal$map;
 var elm$core$Result$map2 = F3(
 	function (func, ra, rb) {
 		if (ra.$ === 'Err') {
@@ -3932,10 +3875,21 @@ var elm_explorations$test$Fuzz$tuple = function (_n0) {
 		fuzzerA,
 		fuzzerB);
 };
-var author$project$MovesTest$positionGenerator = elm_explorations$test$Fuzz$tuple(
-	_Utils_Tuple2(
-		A2(elm_explorations$test$Fuzz$intRange, author$project$MovesTest$boardMin, author$project$MovesTest$boardMax),
-		A2(elm_explorations$test$Fuzz$intRange, author$project$MovesTest$boardMin, author$project$MovesTest$boardMax)));
+var author$project$MovesTest$positionGenerator = A2(
+	elm_explorations$test$Fuzz$map,
+	function (_n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return author$project$Position$make(
+			{x: x, y: y});
+	},
+	elm_explorations$test$Fuzz$tuple(
+		_Utils_Tuple2(
+			A2(elm_explorations$test$Fuzz$intRange, author$project$MovesTest$boardMin, author$project$MovesTest$boardMax),
+			A2(elm_explorations$test$Fuzz$intRange, author$project$MovesTest$boardMin, author$project$MovesTest$boardMax))));
+var author$project$Predicate$make = function (predicate) {
+	return predicate;
+};
 var elm$core$Basics$or = _Basics_or;
 var elm$core$String$contains = _String_contains;
 var elm$core$String$toFloat = _String_toFloat;
@@ -4000,6 +3954,51 @@ var elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
+var elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
+				switch (_n1.$) {
+					case 'LT':
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 'EQ':
+						return elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
+		}
+	});
+var elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _n0 = A2(elm$core$Dict$get, key, dict);
+		if (_n0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var elm$core$Set$member = F2(
+	function (key, _n0) {
+		var dict = _n0.a;
+		return A2(elm$core$Dict$member, key, dict);
+	});
 var elm$core$String$isEmpty = function (string) {
 	return string === '';
 };
@@ -4324,35 +4323,10 @@ var author$project$MovesTest$bishop = A2(
 			A3(
 			elm_explorations$test$Test$fuzz,
 			author$project$MovesTest$positionGenerator,
-			'bishop can never move forward',
+			'bishop can never move out of bounds',
 			function (_n0) {
 				var x = _n0.a;
 				var y = _n0.b;
-				return A2(
-					elm_explorations$test$Expect$equal,
-					false,
-					A2(
-						author$project$MovesTest$any,
-						_List_fromArray(
-							[
-								_Utils_Tuple2(x, y - 1),
-								_Utils_Tuple2(x, y + 1)
-							]),
-						author$project$Moves$bishop(
-							{
-								belongsToPlayer: author$project$MovesTest$alwaysFalse,
-								isCollision: author$project$MovesTest$alwaysFalse,
-								outOfBounds: author$project$MovesTest$alwaysFalse,
-								position: _Utils_Tuple2(x, y)
-							})));
-			}),
-			A3(
-			elm_explorations$test$Test$fuzz,
-			author$project$MovesTest$positionGenerator,
-			'bishop can never move out of bounds',
-			function (_n1) {
-				var x = _n1.a;
-				var y = _n1.b;
 				return A2(
 					elm_explorations$test$Expect$equal,
 					true,
@@ -4362,13 +4336,19 @@ var author$project$MovesTest$bishop = A2(
 						author$project$Moves$bishop(
 							{
 								belongsToPlayer: author$project$MovesTest$alwaysFalse,
-								isCollision: author$project$MovesTest$alwaysFalse,
+								collision: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$Predicate$make(
 									A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$MovesTest$inRange)),
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			})
 		]));
+var author$project$Moves$member = F2(
+	function (position, _n0) {
+		var move = _n0.a;
+		return A2(elm$core$Set$member, position, move);
+	});
 var author$project$Moves$allPawn = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
@@ -4401,9 +4381,7 @@ var author$project$Moves$pawnAttackRules = F2(
 		return author$project$Moves$Moves(
 			A2(
 				elm$core$Set$filter,
-				function (positioninate) {
-					return A2(author$project$Predicate$check, isBlank, positioninate);
-				},
+				author$project$Predicate$check(isBlank),
 				attackRange));
 	});
 var author$project$Moves$pawnCollisionRule = F2(
@@ -4487,13 +4465,44 @@ var author$project$Moves$pawn = function (_n0) {
 				A2(author$project$Moves$pawnDirectionRule, player, position),
 				A2(author$project$Moves$pawnDoubleMoveRule, hasMoved, position),
 				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all)
+				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
+				author$project$Moves$collisionRule(
+				{allMoves: all, isCollision: collision, position: position})
 			]));
 	return A2(author$project$Moves$remove, illegalMoves, all);
 };
-var author$project$MovesTest$alwaysTrue = author$project$Predicate$make(
-	function (_n0) {
-		return true;
+var author$project$MovesTest$alwaysTrue = function (_n0) {
+	return true;
+};
+var elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var author$project$MovesTest$any = F2(
+	function (position, moves) {
+		return A2(
+			elm$core$List$any,
+			function (pos) {
+				return A2(author$project$Moves$member, pos, moves);
+			},
+			position);
 	});
 var elm$core$List$all = F2(
 	function (isOkay, list) {
@@ -4545,7 +4554,8 @@ var author$project$MovesTest$pawn = A2(
 								isBlank: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
@@ -4575,7 +4585,8 @@ var author$project$MovesTest$pawn = A2(
 								isBlank: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$Black,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
@@ -4606,7 +4617,8 @@ var author$project$MovesTest$pawn = A2(
 									}),
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
@@ -4621,28 +4633,27 @@ var author$project$MovesTest$pawn = A2(
 					true,
 					A2(
 						author$project$Moves$member,
-						_Utils_Tuple2(x, y + 2),
+						author$project$Position$make(
+							{x: x, y: y + 2}),
 						author$project$Moves$pawn(
 							{
 								belongsToPlayer: author$project$MovesTest$alwaysFalse,
 								collision: author$project$MovesTest$alwaysFalse,
 								hasMoved: false,
-								isBlank: author$project$Predicate$make(
-									function (_n5) {
-										return true;
-									}),
+								isBlank: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
 			elm_explorations$test$Test$fuzz,
 			author$project$MovesTest$positionGenerator,
 			'Pawn can not move two if moved before',
-			function (_n6) {
-				var x = _n6.a;
-				var y = _n6.b;
+			function (_n5) {
+				var x = _n5.a;
+				var y = _n5.b;
 				return A2(
 					elm_explorations$test$Expect$equal,
 					false,
@@ -4654,19 +4665,20 @@ var author$project$MovesTest$pawn = A2(
 								belongsToPlayer: author$project$MovesTest$alwaysFalse,
 								collision: author$project$MovesTest$alwaysFalse,
 								hasMoved: true,
-								isBlank: author$project$MovesTest$alwaysTrue,
+								isBlank: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
 			elm_explorations$test$Test$fuzz,
 			author$project$MovesTest$positionGenerator,
 			'Pawn can not attack own players',
-			function (_n7) {
-				var x = _n7.a;
-				var y = _n7.b;
+			function (_n6) {
+				var x = _n6.a;
+				var y = _n6.b;
 				return A2(
 					elm_explorations$test$Expect$equal,
 					false,
@@ -4685,16 +4697,17 @@ var author$project$MovesTest$pawn = A2(
 								isBlank: author$project$MovesTest$alwaysFalse,
 								outOfBounds: author$project$MovesTest$alwaysFalse,
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			}),
 			A3(
 			elm_explorations$test$Test$fuzz,
 			author$project$MovesTest$positionGenerator,
 			'Pawn can not move out of bounds',
-			function (_n8) {
-				var x = _n8.a;
-				var y = _n8.b;
+			function (_n7) {
+				var x = _n7.a;
+				var y = _n7.b;
 				return A2(
 					elm_explorations$test$Expect$equal,
 					true,
@@ -4710,7 +4723,8 @@ var author$project$MovesTest$pawn = A2(
 								outOfBounds: author$project$Predicate$make(
 									A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$MovesTest$inRange)),
 								player: author$project$Player$White,
-								position: _Utils_Tuple2(x, y)
+								position: author$project$Position$make(
+									{x: x, y: y})
 							})));
 			})
 		]));
@@ -4807,251 +4821,51 @@ var author$project$PositionTest$suite = A2(
 								{x: 2, y: 2}),
 							isCollision: author$project$PositionTest$isCollision,
 							start: author$project$Position$make(
-								{x: 1, y: 0})
+								{x: 0, y: 0})
 						}));
 			})
 		]));
-var author$project$Board$CreateBoard = function (a) {
-	return {$: 'CreateBoard', a: a};
-};
-var author$project$Board$size = 8;
-var elm$core$Array$Array_elm_builtin = F4(
-	function (a, b, c, d) {
-		return {$: 'Array_elm_builtin', a: a, b: b, c: c, d: d};
-	});
-var elm$core$Array$branchFactor = 32;
-var elm$core$Basics$ceiling = _Basics_ceiling;
-var elm$core$Basics$logBase = F2(
-	function (base, number) {
-		return _Basics_log(number) / _Basics_log(base);
-	});
-var elm$core$Array$shiftStep = elm$core$Basics$ceiling(
-	A2(elm$core$Basics$logBase, 2, elm$core$Array$branchFactor));
-var elm$core$Elm$JsArray$empty = _JsArray_empty;
-var elm$core$Array$empty = A4(elm$core$Array$Array_elm_builtin, 0, elm$core$Array$shiftStep, elm$core$Elm$JsArray$empty, elm$core$Elm$JsArray$empty);
-var elm$core$Array$Leaf = function (a) {
-	return {$: 'Leaf', a: a};
-};
-var elm$core$Array$SubTree = function (a) {
-	return {$: 'SubTree', a: a};
-};
-var elm$core$Elm$JsArray$initializeFromList = _JsArray_initializeFromList;
-var elm$core$Array$compressNodes = F2(
-	function (nodes, acc) {
-		compressNodes:
-		while (true) {
-			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, nodes);
-			var node = _n0.a;
-			var remainingNodes = _n0.b;
-			var newAcc = A2(
-				elm$core$List$cons,
-				elm$core$Array$SubTree(node),
-				acc);
-			if (!remainingNodes.b) {
-				return elm$core$List$reverse(newAcc);
-			} else {
-				var $temp$nodes = remainingNodes,
-					$temp$acc = newAcc;
-				nodes = $temp$nodes;
-				acc = $temp$acc;
-				continue compressNodes;
-			}
-		}
-	});
-var elm$core$Array$treeFromBuilder = F2(
-	function (nodeList, nodeListSize) {
-		treeFromBuilder:
-		while (true) {
-			var newNodeSize = elm$core$Basics$ceiling(nodeListSize / elm$core$Array$branchFactor);
-			if (newNodeSize === 1) {
-				return A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, nodeList).a;
-			} else {
-				var $temp$nodeList = A2(elm$core$Array$compressNodes, nodeList, _List_Nil),
-					$temp$nodeListSize = newNodeSize;
-				nodeList = $temp$nodeList;
-				nodeListSize = $temp$nodeListSize;
-				continue treeFromBuilder;
-			}
-		}
-	});
-var elm$core$Basics$floor = _Basics_floor;
-var elm$core$Basics$max = F2(
-	function (x, y) {
-		return (_Utils_cmp(x, y) > 0) ? x : y;
-	});
-var elm$core$Elm$JsArray$length = _JsArray_length;
-var elm$core$Array$builderToArray = F2(
-	function (reverseNodeList, builder) {
-		if (!builder.nodeListSize) {
-			return A4(
-				elm$core$Array$Array_elm_builtin,
-				elm$core$Elm$JsArray$length(builder.tail),
-				elm$core$Array$shiftStep,
-				elm$core$Elm$JsArray$empty,
-				builder.tail);
-		} else {
-			var treeLen = builder.nodeListSize * elm$core$Array$branchFactor;
-			var depth = elm$core$Basics$floor(
-				A2(elm$core$Basics$logBase, elm$core$Array$branchFactor, treeLen - 1));
-			var correctNodeList = reverseNodeList ? elm$core$List$reverse(builder.nodeList) : builder.nodeList;
-			var tree = A2(elm$core$Array$treeFromBuilder, correctNodeList, builder.nodeListSize);
-			return A4(
-				elm$core$Array$Array_elm_builtin,
-				elm$core$Elm$JsArray$length(builder.tail) + treeLen,
-				A2(elm$core$Basics$max, 5, depth * elm$core$Array$shiftStep),
-				tree,
-				builder.tail);
-		}
-	});
-var elm$core$Array$fromListHelp = F3(
-	function (list, nodeList, nodeListSize) {
-		fromListHelp:
-		while (true) {
-			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
-			var jsArray = _n0.a;
-			var remainingItems = _n0.b;
-			if (_Utils_cmp(
-				elm$core$Elm$JsArray$length(jsArray),
-				elm$core$Array$branchFactor) < 0) {
-				return A2(
-					elm$core$Array$builderToArray,
-					true,
-					{nodeList: nodeList, nodeListSize: nodeListSize, tail: jsArray});
-			} else {
-				var $temp$list = remainingItems,
-					$temp$nodeList = A2(
-					elm$core$List$cons,
-					elm$core$Array$Leaf(jsArray),
-					nodeList),
-					$temp$nodeListSize = nodeListSize + 1;
-				list = $temp$list;
-				nodeList = $temp$nodeList;
-				nodeListSize = $temp$nodeListSize;
-				continue fromListHelp;
-			}
-		}
-	});
-var elm$core$Array$fromList = function (list) {
-	if (!list.b) {
-		return elm$core$Array$empty;
-	} else {
-		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
-	}
-};
-var elm$core$List$length = function (xs) {
-	return A3(
-		elm$core$List$foldl,
-		F2(
-			function (_n0, i) {
-				return i + 1;
-			}),
-		0,
-		xs);
-};
-var author$project$Board$construct = function (board) {
-	var availableSlots = author$project$Board$size * author$project$Board$size;
-	return (_Utils_eq(
-		elm$core$List$length(
-			elm$core$List$concat(board)),
-		availableSlots) && _Utils_eq(
-		elm$core$List$length(board),
-		author$project$Board$size)) ? function (arrayBoard) {
-		return elm$core$Maybe$Just(
-			author$project$Board$CreateBoard(arrayBoard));
-	}(
-		elm$core$Array$fromList(
-			A2(elm$core$List$map, elm$core$Array$fromList, board))) : elm$core$Maybe$Nothing;
-};
-var author$project$Piece$Bishop = {$: 'Bishop'};
-var author$project$Piece$King = function (a) {
-	return {$: 'King', a: a};
-};
-var author$project$Piece$Knight = {$: 'Knight'};
-var author$project$Piece$Pawn = function (a) {
-	return {$: 'Pawn', a: a};
-};
 var author$project$Piece$Queen = {$: 'Queen'};
-var author$project$Piece$Rook = function (a) {
-	return {$: 'Rook', a: a};
-};
-var author$project$Square$Blank = {$: 'Blank'};
 var author$project$Square$Contains = F2(
 	function (a, b) {
 		return {$: 'Contains', a: a, b: b};
 	});
-var author$project$Square$initialBoard = function () {
-	var wRo = A2(
-		author$project$Square$Contains,
-		author$project$Player$White,
-		author$project$Piece$Rook(false));
-	var wQu = A2(author$project$Square$Contains, author$project$Player$White, author$project$Piece$Queen);
-	var wPa = A2(
-		author$project$Square$Contains,
-		author$project$Player$White,
-		author$project$Piece$Pawn(false));
-	var wKn = A2(author$project$Square$Contains, author$project$Player$White, author$project$Piece$Knight);
-	var wKi = A2(
-		author$project$Square$Contains,
-		author$project$Player$White,
-		author$project$Piece$King(false));
-	var wBi = A2(author$project$Square$Contains, author$project$Player$White, author$project$Piece$Bishop);
-	var ooo = author$project$Square$Blank;
-	var bRo = A2(
-		author$project$Square$Contains,
-		author$project$Player$Black,
-		author$project$Piece$Rook(false));
-	var bQu = A2(author$project$Square$Contains, author$project$Player$Black, author$project$Piece$Queen);
-	var bPa = A2(
-		author$project$Square$Contains,
-		author$project$Player$Black,
-		author$project$Piece$Pawn(false));
-	var bKn = A2(author$project$Square$Contains, author$project$Player$Black, author$project$Piece$Knight);
-	var bKi = A2(
-		author$project$Square$Contains,
-		author$project$Player$Black,
-		author$project$Piece$King(false));
-	var bBi = A2(author$project$Square$Contains, author$project$Player$Black, author$project$Piece$Bishop);
-	return author$project$Board$construct(
-		_List_fromArray(
-			[
-				_List_fromArray(
-				[wRo, wKn, wBi, wKi, wQu, wBi, wKn, wRo]),
-				_List_fromArray(
-				[wPa, wPa, wPa, wPa, wPa, wPa, wPa, wPa]),
-				_List_fromArray(
-				[ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo]),
-				_List_fromArray(
-				[ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo]),
-				_List_fromArray(
-				[ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo]),
-				_List_fromArray(
-				[ooo, ooo, ooo, ooo, ooo, ooo, ooo, ooo]),
-				_List_fromArray(
-				[bPa, bPa, bPa, bPa, bPa, bPa, bPa, bPa]),
-				_List_fromArray(
-				[bRo, bKn, bBi, bKi, bQu, bBi, bKn, bRo])
-			]));
-}();
-var author$project$SquareTest$isJust = function (value) {
-	if (value.$ === 'Just') {
+var author$project$Square$blank = function (square) {
+	if (square.$ === 'Empty') {
 		return true;
 	} else {
 		return false;
 	}
 };
+var author$project$Square$collision = A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$Square$blank);
 var author$project$SquareTest$suite = A2(
 	elm_explorations$test$Test$describe,
-	'Ensure Square works',
+	'Square',
 	_List_fromArray(
 		[
 			A2(
 			elm_explorations$test$Test$test,
-			'Board is made correctly',
+			'collision and blank',
 			function (_n0) {
-				return A2(
-					elm_explorations$test$Expect$equal,
-					true,
-					author$project$SquareTest$isJust(author$project$Square$initialBoard));
+				return function (piece) {
+					return A2(
+						elm_explorations$test$Expect$equal,
+						true,
+						author$project$Square$collision(piece));
+				}(
+					A2(author$project$Square$Contains, author$project$Player$White, author$project$Piece$Queen));
+			}),
+			A2(
+			elm_explorations$test$Test$test,
+			'Can swap left',
+			function (_n1) {
+				return A2(elm_explorations$test$Expect$equal, true, true);
+			}),
+			A2(
+			elm_explorations$test$Test$test,
+			'Can swap right',
+			function (_n2) {
+				return A2(elm_explorations$test$Expect$equal, true, true);
 			})
 		]));
 var author$project$Test$Reporter$Reporter$ConsoleReport = function (a) {
@@ -5327,6 +5141,94 @@ var author$project$Console$Text$render = F2(
 					texts));
 		}
 	});
+var elm$core$Array$branchFactor = 32;
+var elm$core$Array$Array_elm_builtin = F4(
+	function (a, b, c, d) {
+		return {$: 'Array_elm_builtin', a: a, b: b, c: c, d: d};
+	});
+var elm$core$Basics$ceiling = _Basics_ceiling;
+var elm$core$Basics$logBase = F2(
+	function (base, number) {
+		return _Basics_log(number) / _Basics_log(base);
+	});
+var elm$core$Array$shiftStep = elm$core$Basics$ceiling(
+	A2(elm$core$Basics$logBase, 2, elm$core$Array$branchFactor));
+var elm$core$Elm$JsArray$empty = _JsArray_empty;
+var elm$core$Array$empty = A4(elm$core$Array$Array_elm_builtin, 0, elm$core$Array$shiftStep, elm$core$Elm$JsArray$empty, elm$core$Elm$JsArray$empty);
+var elm$core$Array$Leaf = function (a) {
+	return {$: 'Leaf', a: a};
+};
+var elm$core$Array$SubTree = function (a) {
+	return {$: 'SubTree', a: a};
+};
+var elm$core$Elm$JsArray$initializeFromList = _JsArray_initializeFromList;
+var elm$core$Array$compressNodes = F2(
+	function (nodes, acc) {
+		compressNodes:
+		while (true) {
+			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, nodes);
+			var node = _n0.a;
+			var remainingNodes = _n0.b;
+			var newAcc = A2(
+				elm$core$List$cons,
+				elm$core$Array$SubTree(node),
+				acc);
+			if (!remainingNodes.b) {
+				return elm$core$List$reverse(newAcc);
+			} else {
+				var $temp$nodes = remainingNodes,
+					$temp$acc = newAcc;
+				nodes = $temp$nodes;
+				acc = $temp$acc;
+				continue compressNodes;
+			}
+		}
+	});
+var elm$core$Array$treeFromBuilder = F2(
+	function (nodeList, nodeListSize) {
+		treeFromBuilder:
+		while (true) {
+			var newNodeSize = elm$core$Basics$ceiling(nodeListSize / elm$core$Array$branchFactor);
+			if (newNodeSize === 1) {
+				return A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, nodeList).a;
+			} else {
+				var $temp$nodeList = A2(elm$core$Array$compressNodes, nodeList, _List_Nil),
+					$temp$nodeListSize = newNodeSize;
+				nodeList = $temp$nodeList;
+				nodeListSize = $temp$nodeListSize;
+				continue treeFromBuilder;
+			}
+		}
+	});
+var elm$core$Basics$floor = _Basics_floor;
+var elm$core$Basics$max = F2(
+	function (x, y) {
+		return (_Utils_cmp(x, y) > 0) ? x : y;
+	});
+var elm$core$Elm$JsArray$length = _JsArray_length;
+var elm$core$Array$builderToArray = F2(
+	function (reverseNodeList, builder) {
+		if (!builder.nodeListSize) {
+			return A4(
+				elm$core$Array$Array_elm_builtin,
+				elm$core$Elm$JsArray$length(builder.tail),
+				elm$core$Array$shiftStep,
+				elm$core$Elm$JsArray$empty,
+				builder.tail);
+		} else {
+			var treeLen = builder.nodeListSize * elm$core$Array$branchFactor;
+			var depth = elm$core$Basics$floor(
+				A2(elm$core$Basics$logBase, elm$core$Array$branchFactor, treeLen - 1));
+			var correctNodeList = reverseNodeList ? elm$core$List$reverse(builder.nodeList) : builder.nodeList;
+			var tree = A2(elm$core$Array$treeFromBuilder, correctNodeList, builder.nodeListSize);
+			return A4(
+				elm$core$Array$Array_elm_builtin,
+				elm$core$Elm$JsArray$length(builder.tail) + treeLen,
+				A2(elm$core$Basics$max, 5, depth * elm$core$Array$shiftStep),
+				tree,
+				builder.tail);
+		}
+	});
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
 var elm$core$Array$initializeHelp = F5(
 	function (fn, fromIndex, len, nodeList, tail) {
@@ -5405,6 +5307,16 @@ var elm$core$Char$isDigit = function (_char) {
 };
 var elm$core$Char$isAlphaNum = function (_char) {
 	return elm$core$Char$isLower(_char) || (elm$core$Char$isUpper(_char) || elm$core$Char$isDigit(_char));
+};
+var elm$core$List$length = function (xs) {
+	return A3(
+		elm$core$List$foldl,
+		F2(
+			function (_n0, i) {
+				return i + 1;
+			}),
+		0,
+		xs);
 };
 var elm$core$List$map2 = _List_map2;
 var elm$core$List$indexedMap = F2(
@@ -6074,6 +5986,41 @@ var author$project$Test$Runner$Node$Vendor$Diff$onp = F4(
 			0,
 			v);
 	});
+var elm$core$Array$fromListHelp = F3(
+	function (list, nodeList, nodeListSize) {
+		fromListHelp:
+		while (true) {
+			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
+			var jsArray = _n0.a;
+			var remainingItems = _n0.b;
+			if (_Utils_cmp(
+				elm$core$Elm$JsArray$length(jsArray),
+				elm$core$Array$branchFactor) < 0) {
+				return A2(
+					elm$core$Array$builderToArray,
+					true,
+					{nodeList: nodeList, nodeListSize: nodeListSize, tail: jsArray});
+			} else {
+				var $temp$list = remainingItems,
+					$temp$nodeList = A2(
+					elm$core$List$cons,
+					elm$core$Array$Leaf(jsArray),
+					nodeList),
+					$temp$nodeListSize = nodeListSize + 1;
+				list = $temp$list;
+				nodeList = $temp$nodeList;
+				nodeListSize = $temp$nodeListSize;
+				continue fromListHelp;
+			}
+		}
+	});
+var elm$core$Array$fromList = function (list) {
+	if (!list.b) {
+		return elm$core$Array$empty;
+	} else {
+		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
+	}
+};
 var elm$core$Array$length = function (_n0) {
 	var len = _n0.a;
 	return len;
@@ -8064,7 +8011,7 @@ var author$project$Test$Runner$Node$run = F2(
 				update: author$project$Test$Runner$Node$update
 			});
 	});
-var author$project$Test$Generated$Main3371981845$main = A2(
+var author$project$Test$Generated$Main962442187$main = A2(
 	author$project$Test$Runner$Node$run,
 	{
 		paths: _List_fromArray(
@@ -8072,7 +8019,7 @@ var author$project$Test$Generated$Main3371981845$main = A2(
 		processes: 8,
 		report: author$project$Test$Reporter$Reporter$ConsoleReport(author$project$Console$Text$UseColor),
 		runs: elm$core$Maybe$Nothing,
-		seed: 179125173529028
+		seed: 358950559385542
 	},
 	elm_explorations$test$Test$concat(
 		_List_fromArray(
@@ -8093,10 +8040,10 @@ var author$project$Test$Generated$Main3371981845$main = A2(
 				_List_fromArray(
 					[author$project$MovesTest$suite]))
 			])));
-_Platform_export({'Test':{'Generated':{'Main3371981845':{'init':author$project$Test$Generated$Main3371981845$main(elm$json$Json$Decode$int)(0)}}}});}(this));
+_Platform_export({'Test':{'Generated':{'Main962442187':{'init':author$project$Test$Generated$Main962442187$main(elm$json$Json$Decode$int)(0)}}}});}(this));
 return this.Elm;
 })({});
-var pipeFilename = "/tmp/elm_test-28522.sock";
+var pipeFilename = "/tmp/elm_test-3848.sock";
 // Make sure necessary things are defined.
 if (typeof Elm === "undefined") {
   throw "test runner config error: Elm is not defined. Make sure you provide a file compiled by Elm!";

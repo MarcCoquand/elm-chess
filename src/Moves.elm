@@ -5,6 +5,7 @@ module Moves exposing
     , Valid
     , bishop
     , checkAll
+    , contains
     , empty
     , fromList
     , king
@@ -82,6 +83,12 @@ getDirection player =
             North
 
 
+contains : Position -> List (Moves Valid) -> Bool
+contains position moves =
+    rules moves
+        |> member position
+
+
 rules : List (Moves a) -> Moves a
 rules =
     -- Same as unions
@@ -114,20 +121,21 @@ collisionRule { isCollision, allMoves, position } =
         (Moves all) =
             allMoves
     in
-    Set.filter
-        (\el ->
-            Position.isClosest
-                { isCollision = isCollision
-                , start = position
-                , end = el
-                }
-        )
-        all
+    all
+        |> Set.filter
+            (\element ->
+                not
+                    (Position.isClosest
+                        { isCollision = isCollision
+                        , start = position
+                        , end = element
+                        }
+                    )
+            )
         |> Moves
 
 
 
--- Get within radius closest radius
 -- BISHOP
 
 
@@ -232,6 +240,36 @@ kingSwapLeftRule isSwappable ( x, y ) =
     else
         Set.singleton ( x - 3, y )
             |> Moves
+
+
+{-|
+
+    Used to check if a king is threatened at a certain square because otherwise
+    it will recursively run forever.
+
+-}
+kingWithoutThreatRule :
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
+    , position : Position
+    , swapRight : Predicate Position
+    , swapLeft : Predicate Position
+    }
+    -> Moves Valid
+kingWithoutThreatRule { belongsToPlayer, outOfBounds, position, swapRight, swapLeft } =
+    let
+        all =
+            allKing position
+
+        illegalMoves =
+            rules
+                [ outOfBoundsRule outOfBounds all
+                , attackOwnPieceRule belongsToPlayer all
+                , kingSwapRightRule swapRight position
+                , kingSwapLeftRule swapLeft position
+                ]
+    in
+    remove illegalMoves all
 
 
 king :
@@ -389,12 +427,7 @@ pawnAttackRules isBlank ( x, y ) =
                 , ( x - 1, y - 1 )
                 ]
     in
-    Set.filter
-        (\positioninate ->
-            Predicate.check isBlank positioninate
-        )
-        attackRange
-        |> Moves
+    Moves (Set.filter (Predicate.check isBlank) attackRange)
 
 
 pawnCollisionRule : Predicate Position -> Position -> Moves Illegal

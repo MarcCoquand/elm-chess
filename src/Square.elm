@@ -12,7 +12,7 @@ module Square exposing
     , collision
     , highlighter
     , isOpponentOf
-    , setup
+    , placeAll
     , updatePiece
     , view
     , white
@@ -146,14 +146,19 @@ blank square =
             False
 
 
-collision : Square -> Bool
-collision square =
+isKing : Player -> Square -> Bool
+isKing player square =
     case square of
         Empty ->
             False
 
-        Contains _ _ ->
-            True
+        Contains owner piece ->
+            Piece.isKing piece && owner == player
+
+
+collision : Square -> Bool
+collision =
+    not << blank
 
 
 canSwapRight : (Position -> Maybe Square) -> Player -> Predicate Position
@@ -203,8 +208,10 @@ canSwapLeft getSquare player ( x, y ) =
 
 
 check : (Position -> Maybe Square) -> Predicate Square -> Predicate Position
-check getSquare predicate =
-    Predicate.withDefault False getSquare predicate
+check getSquare condition position =
+    getSquare position
+        |> Maybe.map (Predicate.check condition)
+        |> Maybe.withDefault False
 
 
 checkPiece :
@@ -212,20 +219,29 @@ checkPiece :
     -> Predicate Player
     -> Predicate Piece
     -> Predicate Position
-checkPiece fromBoard playerPredicate piecePredicate =
+checkPiece getSquare playerCondition pieceCondition position =
     let
-        squarePredicate =
-            Predicate.divideWithDefault False toMaybe playerPredicate piecePredicate
+        checkSquare square =
+            square
+                |> toMaybe
+                |> Maybe.map
+                    (\( player, piece ) ->
+                        Predicate.check playerCondition player
+                            && Predicate.check pieceCondition piece
+                    )
+                |> Maybe.withDefault False
     in
-    Predicate.withDefault False fromBoard squarePredicate
+    getSquare position
+        |> Maybe.map checkSquare
+        |> Maybe.withDefault False
 
 
 
 -- BOARD
 
 
-setup : List (List Square)
-setup =
+placeAll : List (List Square)
+placeAll =
     let
         wPa =
             Contains White (Piece.Pawn False)
