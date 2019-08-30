@@ -4,25 +4,23 @@ module Square exposing
     , applyIfOwner
     , belongs
     , blank
-    , blue
     , canSwapLeft
     , canSwapRight
     , check
     , checkPiece
     , collision
-    , highlighter
     , isOpponentOf
     , placeAll
     , toMaybe
     , updatePiece
     , view
-    , white
     )
 
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Input as Input
+import Highlight exposing (Highlight)
 import Html exposing (Html)
 import Html.Events as Html
 import Piece exposing (Piece(..))
@@ -36,35 +34,19 @@ type Square
     | Contains Player Piece
 
 
-white =
-    Element.rgb255 255 255 255
-
-
-blue =
-    Element.rgb255 200 200 255
-
-
-highlighter enabled =
-    if enabled then
-        Background.color blue
-
-    else
-        Background.color white
-
-
-view : { highlight : Bool, square : Square, onClick : msg } -> Element msg
-view { highlight, square, onClick } =
+view : { color : Highlight, square : Square, onClick : msg } -> Element msg
+view { color, square, onClick } =
     case square of
         Empty ->
             Input.button
-                [ highlighter highlight
+                [ Highlight.setBackground color
                 , Border.solid
                 , Border.width 2
                 ]
                 { onPress = Just onClick, label = Element.text " " }
 
         Contains player piece ->
-            Input.button [ highlighter highlight, Border.solid, Border.width 2 ]
+            Input.button [ Highlight.setBackground color, Border.solid, Border.width 2 ]
                 { onPress = Just onClick, label = Piece.view player piece }
 
 

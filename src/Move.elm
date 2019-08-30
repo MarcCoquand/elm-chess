@@ -2,8 +2,10 @@ module Move exposing
     ( Move(..)
     , bishop
     , checkAll
+    , checkMate
     , contains
     , empty
+    , highlight
     , isValid
     , king
     , knight
@@ -16,6 +18,7 @@ module Move exposing
     , toList
     )
 
+import Highlight exposing (Highlight)
 import Player exposing (Player(..))
 import Position exposing (Position)
 import Predicate exposing (Predicate)
@@ -37,9 +40,27 @@ type alias HasMoved =
     Bool
 
 
+highlight : Move -> Highlight
+highlight move =
+    case move of
+        Single _ ->
+            Highlight.Blue
+
+        Swap _ ->
+            Highlight.Red
+
+        Invalid ->
+            Highlight.None
+
+
 isValid : Move -> Bool
 isValid move =
     move /= Invalid
+
+
+isEmpty : RuleSet a -> Bool
+isEmpty (RuleSet r) =
+    Set.isEmpty r
 
 
 makeSingle : Position -> RuleSet Valid -> Position -> Move
@@ -307,6 +328,35 @@ king { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft
 
             Nothing ->
                 makeSingle position validRuleSet to
+
+
+checkMate :
+    { belongsToPlayer : Predicate Position
+    , outOfBounds : Predicate Position
+    , isThreatened : Predicate Position
+    , position : Position
+    , swapRight : Predicate Position
+    , swapLeft : Predicate Position
+    }
+    -> Bool
+checkMate { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft } =
+    let
+        ( all, swapRook ) =
+            allKing position
+
+        illegalRuleSet =
+            rules
+                [ outOfBoundsRule outOfBounds all
+                , attackOwnPieceRule belongsToPlayer all
+                , kingThreatenedRule isThreatened all
+                , kingSwapRightRule swapRight position
+                , kingSwapLeftRule swapLeft position
+                ]
+
+        validMoves =
+            remove illegalRuleSet all
+    in
+    isEmpty validMoves && isThreatened position
 
 
 allKing : Position -> ( RuleSet All, Position -> Maybe { from : Position, to : Position } )

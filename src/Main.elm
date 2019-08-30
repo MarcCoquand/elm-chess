@@ -1,9 +1,10 @@
-module Main exposing (Loader(..), Model, Msg(..), click, errorMessage, highlighter, init, load, main, makeChanges, select, update, view, viewHelper)
+module Main exposing (main)
 
 import Board exposing (Board)
 import Browser
 import ChessBoard exposing (ChessBoard)
 import Element exposing (Element)
+import Highlight exposing (Highlight)
 import Move exposing (Move(..))
 import Piece exposing (Piece)
 import Player exposing (Player)
@@ -31,20 +32,14 @@ type Loader
 load : Loader
 load =
     let
-        initialModel =
+        initial =
             ChessBoard.init
-                |> Maybe.map
-                    (\board ->
-                        { current = Player.White
-                        , board = board
-                        }
-                    )
     in
-    case initialModel of
-        Just state ->
+    case initial of
+        Just board ->
             Loaded
-                { current = state.current
-                , board = state.board
+                { current = Player.White
+                , board = board
                 , message = "Welcome!"
                 , selected = Nothing
                 }
@@ -104,18 +99,18 @@ update (Click position) model =
             ( model, Cmd.none )
 
 
-highlighter : Maybe ChessBoard.Selected -> Position -> Bool
-highlighter selected position =
+highlight : Maybe ChessBoard.Selected -> Position -> Highlight
+highlight selected position =
     case selected of
         Just { move } ->
-            Move.isValid (move position)
+            Move.highlight (move position)
 
         Nothing ->
-            False
+            Highlight.None
 
 
-viewHelper : Model -> Element Msg
-viewHelper model =
+viewGame : Model -> Element Msg
+viewGame model =
     Element.column []
         [ Board.view
             { renderSquare =
@@ -123,7 +118,7 @@ viewHelper model =
                     Square.view
                         { square = square
                         , onClick = msg
-                        , highlight = highlighter model.selected position
+                        , color = highlight model.selected position
                         }
             , indexedMsg = Click
             , board = model.board
@@ -143,7 +138,7 @@ view model =
     case model of
         Loaded data ->
             { title = "Elm Chess!"
-            , body = [ Element.layout [] (viewHelper data) ]
+            , body = [ Element.layout [] (viewGame data) ]
             }
 
         Failed ->

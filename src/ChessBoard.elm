@@ -8,6 +8,7 @@ module ChessBoard exposing
     )
 
 import Board exposing (Board)
+import Highlight exposing (Highlight)
 import Move exposing (Move)
 import Piece exposing (Piece(..))
 import Player exposing (Player)
