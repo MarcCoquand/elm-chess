@@ -20,10 +20,7 @@ getSize =
     Dom.getViewport
         |> Task.map .viewport
         |> Task.map
-            (\viewport ->
-                min viewport.width viewport.height
-                    |> round
-            )
+            (\viewport -> round (min viewport.width viewport.height))
 
 
 type Msg
