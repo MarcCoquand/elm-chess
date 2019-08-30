@@ -26,6 +26,14 @@ make predicate =
     predicate
 
 
+
+{-
+   These functions were an exploration in the use of Contravariance for moves.
+   It seemed to have just made the code more complicated but might be worth
+   looking into again.
+-}
+
+
 contramap : (a -> c) -> Predicate c -> Predicate a
 contramap cf checker =
     \a ->

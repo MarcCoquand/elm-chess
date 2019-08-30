@@ -1,21 +1,90 @@
-module SquareTest exposing (isJust, suite)
+module SquareTest exposing (suite)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
-import Piece
+import Piece exposing (Piece(..))
 import Player
-import Square
+import Position exposing (Position)
+import Square exposing (Square)
 import Test exposing (..)
 
 
-isJust : Maybe a -> Bool
-isJust value =
-    case value of
-        Just _ ->
-            True
+swapMockShouldFail : Position -> Maybe Square
+swapMockShouldFail ( x, y ) =
+    case ( x, y ) of
+        ( 0, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
 
-        Nothing ->
-            False
+        ( 1, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 2, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 3, 0 ) ->
+            Square.Contains Player.White (King False)
+                |> Just
+
+        ( 4, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 5, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 6, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 7, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        _ ->
+            Nothing
+
+
+swapMock : Position -> Maybe Square
+swapMock ( x, y ) =
+    case ( x, y ) of
+        ( 0, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        ( 1, 0 ) ->
+            Square.Empty
+                |> Just
+
+        ( 2, 0 ) ->
+            Square.Empty
+                |> Just
+
+        ( 3, 0 ) ->
+            Square.Contains Player.White (King False)
+                |> Just
+
+        ( 4, 0 ) ->
+            Square.Empty
+                |> Just
+
+        ( 5, 0 ) ->
+            Square.Empty
+                |> Just
+
+        ( 6, 0 ) ->
+            Square.Empty
+                |> Just
+
+        ( 7, 0 ) ->
+            Square.Contains Player.White (Rook False)
+                |> Just
+
+        _ ->
+            Nothing
 
 
 suite : Test
@@ -24,13 +93,22 @@ suite =
         [ test "collision and blank" <|
             \_ ->
                 Square.Contains Player.White Piece.Queen
-                    |> (\piece ->
-                            Expect.equal
-                                True
-                                (Square.collision piece)
-                       )
+                    |> Square.collision
+                    |> Expect.equal True
         , test "Can swap left" <|
-            \_ -> Expect.equal True True
+            \_ ->
+                Square.canSwapLeft swapMock Player.White ( 3, 0 )
+                    |> Expect.equal True
         , test "Can swap right" <|
-            \_ -> Expect.equal True True
+            \_ ->
+                Square.canSwapRight swapMock Player.White ( 3, 0 )
+                    |> Expect.equal True
+        , test "Can not swap left if obsticle" <|
+            \_ ->
+                Square.canSwapLeft swapMockShouldFail Player.White ( 3, 0 )
+                    |> Expect.equal False
+        , test "Can not swap right if obsticle" <|
+            \_ ->
+                Square.canSwapRight swapMockShouldFail Player.White ( 3, 0 )
+                    |> Expect.equal False
         ]

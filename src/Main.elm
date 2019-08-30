@@ -4,7 +4,7 @@ import Board exposing (Board)
 import Browser
 import ChessBoard exposing (ChessBoard)
 import Element exposing (Element)
-import Moves exposing (Moves, Valid)
+import Move exposing (Move(..))
 import Piece exposing (Piece)
 import Player exposing (Player)
 import Position exposing (Position)
@@ -19,13 +19,7 @@ type alias Model =
     { current : Player
     , board : ChessBoard
     , message : String
-    , selected :
-        Maybe
-            { position : Position
-            , player : Player
-            , piece : Piece
-            , moves : Moves Valid
-            }
+    , selected : Maybe ChessBoard.Selected
     }
 
 
@@ -66,17 +60,11 @@ init =
 
 makeChanges :
     Model
-    ->
-        List
-            { from : Position
-            , to : Position
-            , ownedPiece :
-                ( Player, Piece )
-            }
+    -> ChessBoard
     -> Model
-makeChanges model affectedPieces =
+makeChanges model board =
     { current = Player.next model.current
-    , board = ChessBoard.move affectedPieces model.board
+    , board = board
     , message = "Performed move!"
     , selected = Nothing
     }
@@ -87,10 +75,7 @@ select position model =
     { model
         | selected = ChessBoard.select model.board model.current position
         , message =
-            "Selected: "
-                ++ String.fromInt (Position.getX position)
-                ++ " "
-                ++ String.fromInt (Position.getY position)
+            "Choose where to move."
     }
 
 
@@ -98,18 +83,12 @@ click : Position -> Model -> Model
 click position model =
     case model.selected of
         Just selected ->
-            if Moves.member position selected.moves then
-                makeChanges model
-                    [ { from = selected.position
-                      , to = position
-                      , ownedPiece =
-                            ( selected.player, selected.piece )
-                      }
-                    ]
-
-            else
-                { model | selected = Nothing }
-                    |> select position
+            ChessBoard.performMove model.board (selected.move position)
+                |> Maybe.map (\board -> makeChanges model board)
+                |> Maybe.withDefault
+                    ({ model | selected = Nothing }
+                        |> select position
+                    )
 
         Nothing ->
             select position model
@@ -128,8 +107,8 @@ update (Click position) model =
 highlighter : Maybe ChessBoard.Selected -> Position -> Bool
 highlighter selected position =
     case selected of
-        Just { moves } ->
-            Moves.member position moves
+        Just { move } ->
+            Move.isValid (move position)
 
         Nothing ->
             False
@@ -149,7 +128,7 @@ viewHelper model =
             , indexedMsg = Click
             , board = model.board
             }
-        , Player.display model.current
+        , Player.view model.current
         , Element.text model.message
         ]
 

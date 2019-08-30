@@ -1,4 +1,4 @@
-module Player exposing (Player(..), display, equal, isOpponent, next)
+module Player exposing (Player(..), next, view)
 
 import Element exposing (Element)
 import Predicate exposing (Predicate)
@@ -29,16 +29,6 @@ show player =
             "Black"
 
 
-equal : Player -> Player -> Bool
-equal p1 p2 =
-    p1 == p2
-
-
-isOpponent : Player -> Player -> Bool
-isOpponent p1 p2 =
-    p1 /= p2
-
-
-display : Player -> Element msg
-display player =
+view : Player -> Element msg
+view player =
     Element.text (show player)

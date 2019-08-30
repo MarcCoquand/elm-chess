@@ -144,6 +144,11 @@ upperBound (CreateBoard board) =
     ( upper, upper )
 
 
+{-|
+
+    Hardcoded since the board is fixed anyway
+
+-}
 inBounds : Position -> Bool
 inBounds coord =
     isWithinRange coord ( size, size )

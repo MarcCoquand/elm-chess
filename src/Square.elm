@@ -13,6 +13,7 @@ module Square exposing
     , highlighter
     , isOpponentOf
     , placeAll
+    , toMaybe
     , updatePiece
     , view
     , white
@@ -24,7 +25,6 @@ import Element.Border as Border
 import Element.Input as Input
 import Html exposing (Html)
 import Html.Events as Html
-import Moves exposing (Moves, Valid)
 import Piece exposing (Piece(..))
 import Player exposing (Player(..))
 import Position exposing (Position)
@@ -165,19 +165,19 @@ canSwapRight : (Position -> Maybe Square) -> Player -> Predicate Position
 canSwapRight fromBoard player ( x, y ) =
     let
         blankSide =
-            List.all (check fromBoard blank) [ ( x + 1, y ), ( x + 2, y ) ]
+            List.all (check fromBoard blank) [ ( x + 1, y ), ( x + 2, y ), ( x + 3, y ) ]
 
         isUnmovedRook =
             checkPiece
                 fromBoard
-                (Player.equal player)
+                ((==) player)
                 Piece.isUnmovedRook
-                ( x + 3, y )
+                ( x + 4, y )
 
         isUnmovedKing =
             checkPiece
                 fromBoard
-                (Player.equal player)
+                ((==) player)
                 Piece.isUnmovedKing
                 ( x, y )
     in
@@ -188,19 +188,19 @@ canSwapLeft : (Position -> Maybe Square) -> Player -> Predicate Position
 canSwapLeft getSquare player ( x, y ) =
     let
         blankSide =
-            List.all (check getSquare blank) [ ( x - 1, y ), ( x - 2, y ), ( x - 3, y ) ]
+            List.all (check getSquare blank) [ ( x - 1, y ), ( x - 2, y ) ]
 
         isUnmovedRook =
             checkPiece
                 getSquare
-                (Player.equal player)
+                ((==) player)
                 Piece.isUnmovedRook
-                ( x - 4, y )
+                ( x - 3, y )
 
         isUnmovedKing =
             checkPiece
                 getSquare
-                (Player.equal player)
+                ((==) player)
                 Piece.isUnmovedKing
                 ( x, y )
     in

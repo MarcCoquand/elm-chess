@@ -5645,6 +5645,26 @@ var elm$core$Array$get = F2(
 			A2(elm$core$Elm$JsArray$unsafeGet, elm$core$Array$bitMask & index, tail)) : elm$core$Maybe$Just(
 			A3(elm$core$Array$getHelp, startShift, index, tree)));
 	});
+var elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
+	});
+var author$project$Board$get = F2(
+	function (_n0, position) {
+		var board = _n0.a;
+		var getY = A2(
+			elm$core$Array$get,
+			author$project$Position$getY(position),
+			board);
+		var getX = elm$core$Array$get(
+			author$project$Position$getX(position));
+		return A2(elm$core$Maybe$andThen, getX, getY);
+	});
 var elm$core$Elm$JsArray$unsafeSet = _JsArray_unsafeSet;
 var elm$core$Array$setHelp = F4(
 	function (shift, index, value, tree) {
@@ -5750,32 +5770,116 @@ var elm$core$List$concatMap = F2(
 		return elm$core$List$concat(
 			A2(elm$core$List$map, f, list));
 	});
-var author$project$ChessBoard$move = F2(
+var author$project$ChessBoard$change = F2(
 	function (pieces, board) {
-		var makeSquare = function (_n1) {
-			var player = _n1.a;
-			var piece = _n1.b;
-			return A2(
-				author$project$Square$Contains,
-				player,
-				author$project$Piece$update(piece));
-		};
-		var changes = A2(
+		var makeSquare = F2(
+			function (player, piece) {
+				return A2(
+					author$project$Square$Contains,
+					player,
+					author$project$Piece$update(piece));
+			});
+		var coordinates = A2(
 			elm$core$List$concatMap,
 			function (_n0) {
-				var ownedPiece = _n0.ownedPiece;
+				var piece = _n0.piece;
+				var player = _n0.player;
 				var from = _n0.from;
 				var to = _n0.to;
 				return _List_fromArray(
 					[
 						_Utils_Tuple2(
 						to,
-						makeSquare(ownedPiece)),
+						A2(makeSquare, player, piece)),
 						_Utils_Tuple2(from, author$project$Square$Empty)
 					]);
 			},
 			pieces);
-		return A2(author$project$Board$update, changes, board);
+		return A2(author$project$Board$update, coordinates, board);
+	});
+var author$project$Square$toMaybe = function (square) {
+	if (square.$ === 'Empty') {
+		return elm$core$Maybe$Nothing;
+	} else {
+		var player = square.a;
+		var piece = square.b;
+		return elm$core$Maybe$Just(
+			_Utils_Tuple2(player, piece));
+	}
+};
+var elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 'Nothing') {
+			return elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
+var author$project$ChessBoard$performMove = F2(
+	function (board, move) {
+		switch (move.$) {
+			case 'Single':
+				var from = move.a.from;
+				var to = move.a.to;
+				return A2(
+					elm$core$Maybe$map,
+					function (_n1) {
+						var player = _n1.a;
+						var piece = _n1.b;
+						return A2(
+							author$project$ChessBoard$change,
+							_List_fromArray(
+								[
+									{from: from, piece: piece, player: player, to: to}
+								]),
+							board);
+					},
+					A2(
+						elm$core$Maybe$andThen,
+						author$project$Square$toMaybe,
+						A2(author$project$Board$get, board, from)));
+			case 'Swap':
+				var from = move.a.from;
+				var to = move.a.to;
+				var swapFrom = move.a.swapFrom;
+				var swapTo = move.a.swapTo;
+				var swapPiece = A2(
+					elm$core$Maybe$andThen,
+					author$project$Square$toMaybe,
+					A2(author$project$Board$get, board, swapFrom));
+				var piece = A2(
+					elm$core$Maybe$andThen,
+					author$project$Square$toMaybe,
+					A2(author$project$Board$get, board, from));
+				return A3(
+					elm$core$Maybe$map2,
+					F2(
+						function (_n2, _n3) {
+							var swapPlayer = _n2.a;
+							var sp = _n2.b;
+							var player = _n3.a;
+							var p = _n3.b;
+							return A2(
+								author$project$ChessBoard$change,
+								_List_fromArray(
+									[
+										{from: from, piece: p, player: player, to: to},
+										{from: swapFrom, piece: sp, player: swapPlayer, to: swapTo}
+									]),
+								board);
+						}),
+					swapPiece,
+					piece);
+			default:
+				return elm$core$Maybe$Nothing;
+		}
 	});
 var author$project$Player$next = function (player) {
 	if (player.$ === 'Black') {
@@ -5785,33 +5889,13 @@ var author$project$Player$next = function (player) {
 	}
 };
 var author$project$Main$makeChanges = F2(
-	function (model, affectedPieces) {
+	function (model, board) {
 		return {
-			board: A2(author$project$ChessBoard$move, affectedPieces, model.board),
+			board: board,
 			current: author$project$Player$next(model.current),
 			message: 'Performed move!',
 			selected: elm$core$Maybe$Nothing
 		};
-	});
-var elm$core$Maybe$andThen = F2(
-	function (callback, maybeValue) {
-		if (maybeValue.$ === 'Just') {
-			var value = maybeValue.a;
-			return callback(value);
-		} else {
-			return elm$core$Maybe$Nothing;
-		}
-	});
-var author$project$Board$get = F2(
-	function (_n0, position) {
-		var board = _n0.a;
-		var getY = A2(
-			elm$core$Array$get,
-			author$project$Position$getY(position),
-			board);
-		var getX = elm$core$Array$get(
-			author$project$Position$getX(position));
-		return A2(elm$core$Maybe$andThen, getX, getY);
 	});
 var author$project$Board$isWithinRange = F2(
 	function (_n0, _n1) {
@@ -5847,8 +5931,8 @@ var author$project$Board$positions = function () {
 		row,
 		A2(elm$core$List$range, 0, 7));
 }();
-var author$project$Moves$Moves = function (a) {
-	return {$: 'Moves', a: a};
+var author$project$Move$RuleSet = function (a) {
+	return {$: 'RuleSet', a: a};
 };
 var elm$core$Basics$negate = function (n) {
 	return -n;
@@ -6390,7 +6474,7 @@ var elm$core$Set$singleton = function (key) {
 	return elm$core$Set$Set_elm_builtin(
 		A2(elm$core$Dict$singleton, key, _Utils_Tuple0));
 };
-var author$project$Moves$allBishop = function (position) {
+var author$project$Move$allBishop = function (position) {
 	var positiveDiagonal = A2(
 		elm$core$List$map,
 		function (value) {
@@ -6417,7 +6501,7 @@ var author$project$Moves$allBishop = function (position) {
 				x: author$project$Position$getX(position),
 				y: author$project$Position$getY(position)
 			}));
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		function (set) {
 			return A2(elm$core$Set$diff, set, currentPosition);
 		}(
@@ -6451,14 +6535,14 @@ var elm$core$Set$filter = F2(
 					}),
 				dict));
 	});
-var author$project$Moves$attackOwnPieceRule = F2(
+var author$project$Move$attackOwnPieceRule = F2(
 	function (belongsToPlayer, _n0) {
-		var allMoves = _n0.a;
-		return author$project$Moves$Moves(
+		var allRuleSet = _n0.a;
+		return author$project$Move$RuleSet(
 			A2(
 				elm$core$Set$filter,
 				author$project$Predicate$check(belongsToPlayer),
-				allMoves));
+				allRuleSet));
 	});
 var author$project$Position$stepCloser = function (_n0) {
 	var start = _n0.start;
@@ -6499,38 +6583,95 @@ var author$project$Position$isClosest = function (_n0) {
 			start: start
 		}));
 };
-var author$project$Moves$collisionRule = function (_n0) {
-	var isCollision = _n0.isCollision;
-	var allMoves = _n0.allMoves;
-	var position = _n0.position;
-	var _n1 = allMoves;
-	var all = _n1.a;
-	return author$project$Moves$Moves(
-		A2(
-			elm$core$Set$filter,
-			function (element) {
-				return !author$project$Position$isClosest(
-					{end: element, isCollision: isCollision, start: position});
-			},
-			all));
+var author$project$Move$collisionRule = F3(
+	function (isCollision, allRuleSet, position) {
+		var _n0 = allRuleSet;
+		var all = _n0.a;
+		return author$project$Move$RuleSet(
+			A2(
+				elm$core$Set$filter,
+				function (element) {
+					return !author$project$Position$isClosest(
+						{end: element, isCollision: isCollision, start: position});
+				},
+				all));
+	});
+var author$project$Move$Invalid = {$: 'Invalid'};
+var author$project$Move$Single = function (a) {
+	return {$: 'Single', a: a};
 };
-var author$project$Moves$outOfBoundsRule = F2(
+var elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
+				switch (_n1.$) {
+					case 'LT':
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 'EQ':
+						return elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
+		}
+	});
+var elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _n0 = A2(elm$core$Dict$get, key, dict);
+		if (_n0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var elm$core$Set$member = F2(
+	function (key, _n0) {
+		var dict = _n0.a;
+		return A2(elm$core$Dict$member, key, dict);
+	});
+var author$project$Move$member = F2(
+	function (position, _n0) {
+		var move = _n0.a;
+		return A2(elm$core$Set$member, position, move);
+	});
+var author$project$Move$makeSingle = F3(
+	function (from, moves, to) {
+		return A2(author$project$Move$member, to, moves) ? author$project$Move$Single(
+			{from: from, to: to}) : author$project$Move$Invalid;
+	});
+var author$project$Move$outOfBoundsRule = F2(
 	function (isOutOfBounds, _n0) {
-		var allMoves = _n0.a;
-		return author$project$Moves$Moves(
+		var allRuleSet = _n0.a;
+		return author$project$Move$RuleSet(
 			A2(
 				elm$core$Set$filter,
 				author$project$Predicate$check(isOutOfBounds),
-				allMoves));
+				allRuleSet));
 	});
-var author$project$Moves$remove = F2(
+var author$project$Move$remove = F2(
 	function (_n0, _n1) {
 		var illegal = _n0.a;
 		var all = _n1.a;
-		return author$project$Moves$Moves(
+		return author$project$Move$RuleSet(
 			A2(elm$core$Set$diff, all, illegal));
 	});
-var author$project$Moves$empty = author$project$Moves$Moves(elm$core$Set$empty);
+var author$project$Move$empty = author$project$Move$RuleSet(elm$core$Set$empty);
 var elm$core$Dict$union = F2(
 	function (t1, t2) {
 		return A3(elm$core$Dict$foldl, elm$core$Dict$insert, t2, t1);
@@ -6542,39 +6683,61 @@ var elm$core$Set$union = F2(
 		return elm$core$Set$Set_elm_builtin(
 			A2(elm$core$Dict$union, dict1, dict2));
 	});
-var author$project$Moves$union = F2(
+var author$project$Move$union = F2(
 	function (_n0, _n1) {
 		var a = _n0.a;
 		var b = _n1.a;
-		return author$project$Moves$Moves(
+		return author$project$Move$RuleSet(
 			A2(elm$core$Set$union, a, b));
 	});
-var author$project$Moves$rules = A2(elm$core$List$foldl, author$project$Moves$union, author$project$Moves$empty);
-var author$project$Moves$bishop = function (_n0) {
+var author$project$Move$rules = A2(elm$core$List$foldl, author$project$Move$union, author$project$Move$empty);
+var author$project$Move$bishop = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
 	var collision = _n0.collision;
 	var position = _n0.position;
-	var all = author$project$Moves$allBishop(position);
-	var illegalMoves = author$project$Moves$rules(
+	var all = author$project$Move$allBishop(position);
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
-				author$project$Moves$collisionRule(
-				{allMoves: all, isCollision: collision, position: position})
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all),
+				A3(author$project$Move$collisionRule, collision, all, position)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	return A2(
+		author$project$Move$makeSingle,
+		position,
+		A2(author$project$Move$remove, illegalRuleSet, all));
 };
-var author$project$Moves$allKing = function (_n0) {
+var author$project$Move$Swap = function (a) {
+	return {$: 'Swap', a: a};
+};
+var author$project$Move$allKing = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
+	var swapRook = function (position) {
+		return _Utils_eq(
+			position,
+			_Utils_Tuple2(x - 2, y)) ? elm$core$Maybe$Just(
+			{
+				from: _Utils_Tuple2(x - 3, y),
+				to: _Utils_Tuple2(x - 1, y)
+			}) : (_Utils_eq(
+			position,
+			_Utils_Tuple2(x + 3, y)) ? elm$core$Maybe$Just(
+			{
+				from: author$project$Position$make(
+					{x: x + 4, y: y}),
+				to: author$project$Position$make(
+					{x: x + 2, y: y})
+			}) : elm$core$Maybe$Nothing);
+	};
 	var row = A2(
 		elm$core$List$map,
 		function (value) {
 			return _Utils_Tuple2(value + x, y);
 		},
-		A2(elm$core$List$range, -1, 1));
+		A2(elm$core$List$range, -2, 1));
 	var positiveDiagonal = A2(
 		elm$core$List$map,
 		function (value) {
@@ -6595,77 +6758,87 @@ var author$project$Moves$allKing = function (_n0) {
 			return _Utils_Tuple2(x, value + y);
 		},
 		A2(elm$core$List$range, -1, 1));
-	return author$project$Moves$Moves(
+	var validMoves = author$project$Move$RuleSet(
 		function (set) {
 			return A2(elm$core$Set$diff, set, currentPosition);
 		}(
 			A2(
 				elm$core$Set$insert,
-				_Utils_Tuple2(x - 3, y),
-				A2(
-					elm$core$Set$insert,
-					_Utils_Tuple2(x + 2, y),
-					elm$core$Set$fromList(
+				_Utils_Tuple2(x + 3, y),
+				elm$core$Set$fromList(
+					_Utils_ap(
+						column,
 						_Utils_ap(
-							column,
-							_Utils_ap(
-								row,
-								_Utils_ap(positiveDiagonal, negativeDiagonal))))))));
+							row,
+							_Utils_ap(positiveDiagonal, negativeDiagonal)))))));
+	return _Utils_Tuple2(validMoves, swapRook);
 };
-var author$project$Moves$kingSwapLeftRule = F2(
+var author$project$Move$kingSwapLeftRule = F2(
 	function (isSwappable, _n0) {
 		var x = _n0.a;
 		var y = _n0.b;
 		return A2(
 			author$project$Predicate$check,
 			isSwappable,
-			_Utils_Tuple2(x, y)) ? author$project$Moves$Moves(elm$core$Set$empty) : author$project$Moves$Moves(
+			_Utils_Tuple2(x, y)) ? author$project$Move$RuleSet(elm$core$Set$empty) : author$project$Move$RuleSet(
 			elm$core$Set$singleton(
-				_Utils_Tuple2(x - 3, y)));
+				_Utils_Tuple2(x - 2, y)));
 	});
-var author$project$Moves$kingSwapRightRule = F2(
+var author$project$Move$kingSwapRightRule = F2(
 	function (isSwappable, _n0) {
 		var x = _n0.a;
 		var y = _n0.b;
 		return A2(
 			author$project$Predicate$check,
 			isSwappable,
-			_Utils_Tuple2(x, y)) ? author$project$Moves$Moves(elm$core$Set$empty) : author$project$Moves$Moves(
+			_Utils_Tuple2(x, y)) ? author$project$Move$RuleSet(elm$core$Set$empty) : author$project$Move$RuleSet(
 			elm$core$Set$singleton(
-				_Utils_Tuple2(x + 2, y)));
+				_Utils_Tuple2(x + 3, y)));
 	});
-var author$project$Moves$kingThreatenedRule = F2(
+var author$project$Move$kingThreatenedRule = F2(
 	function (isThreatened, _n0) {
 		var all = _n0.a;
-		return author$project$Moves$Moves(
+		return author$project$Move$RuleSet(
 			A2(
 				elm$core$Set$filter,
 				author$project$Predicate$check(isThreatened),
 				all));
 	});
-var author$project$Moves$king = function (_n0) {
+var author$project$Move$king = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
 	var isThreatened = _n0.isThreatened;
 	var position = _n0.position;
 	var swapRight = _n0.swapRight;
 	var swapLeft = _n0.swapLeft;
-	var all = author$project$Moves$allKing(position);
-	var illegalMoves = author$project$Moves$rules(
+	var _n1 = author$project$Move$allKing(position);
+	var all = _n1.a;
+	var swapRook = _n1.b;
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
-				A2(author$project$Moves$kingThreatenedRule, isThreatened, all),
-				A2(author$project$Moves$kingSwapRightRule, swapRight, position),
-				A2(author$project$Moves$kingSwapLeftRule, swapLeft, position)
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all),
+				A2(author$project$Move$kingThreatenedRule, isThreatened, all),
+				A2(author$project$Move$kingSwapRightRule, swapRight, position),
+				A2(author$project$Move$kingSwapLeftRule, swapLeft, position)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	var validRuleSet = A2(author$project$Move$remove, illegalRuleSet, all);
+	return function (to) {
+		var _n2 = swapRook(to);
+		if (_n2.$ === 'Just') {
+			var rookMove = _n2.a;
+			return A2(author$project$Move$member, to, validRuleSet) ? author$project$Move$Swap(
+				{from: position, swapFrom: rookMove.from, swapTo: rookMove.to, to: to}) : author$project$Move$Invalid;
+		} else {
+			return A3(author$project$Move$makeSingle, position, validRuleSet, to);
+		}
+	};
 };
-var author$project$Moves$allKnight = function (_n0) {
+var author$project$Move$allKnight = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		elm$core$Set$fromList(
 			_List_fromArray(
 				[
@@ -6679,23 +6852,26 @@ var author$project$Moves$allKnight = function (_n0) {
 					_Utils_Tuple2(x - 1, y - 2)
 				])));
 };
-var author$project$Moves$knight = function (_n0) {
+var author$project$Move$knight = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
 	var position = _n0.position;
-	var all = author$project$Moves$allKnight(position);
-	var illegalMoves = author$project$Moves$rules(
+	var all = author$project$Move$allKnight(position);
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all)
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	return A2(
+		author$project$Move$makeSingle,
+		position,
+		A2(author$project$Move$remove, illegalRuleSet, all));
 };
-var author$project$Moves$allPawn = function (_n0) {
+var author$project$Move$allPawn = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		elm$core$Set$fromList(
 			_List_fromArray(
 				[
@@ -6709,7 +6885,7 @@ var author$project$Moves$allPawn = function (_n0) {
 					_Utils_Tuple2(x - 1, y - 1)
 				])));
 };
-var author$project$Moves$pawnAttackRules = F2(
+var author$project$Move$pawnAttackRules = F2(
 	function (isBlank, _n0) {
 		var x = _n0.a;
 		var y = _n0.b;
@@ -6721,13 +6897,13 @@ var author$project$Moves$pawnAttackRules = F2(
 					_Utils_Tuple2(x + 1, y - 1),
 					_Utils_Tuple2(x - 1, y - 1)
 				]));
-		return author$project$Moves$Moves(
+		return author$project$Move$RuleSet(
 			A2(
 				elm$core$Set$filter,
 				author$project$Predicate$check(isBlank),
 				attackRange));
 	});
-var author$project$Moves$pawnCollisionRule = F2(
+var author$project$Move$pawnCollisionRule = F2(
 	function (isCollision, _n0) {
 		var x = _n0.a;
 		var y = _n0.b;
@@ -6739,16 +6915,16 @@ var author$project$Moves$pawnCollisionRule = F2(
 					_Utils_Tuple2(x, y - 1),
 					_Utils_Tuple2(x, y - 2)
 				]));
-		return author$project$Moves$Moves(
+		return author$project$Move$RuleSet(
 			A2(
 				elm$core$Set$filter,
 				author$project$Predicate$check(isCollision),
 				set));
 	});
-var author$project$Moves$onlyDownRule = function (_n0) {
+var author$project$Move$onlyDownRule = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		elm$core$Set$fromList(
 			_List_fromArray(
 				[
@@ -6758,10 +6934,10 @@ var author$project$Moves$onlyDownRule = function (_n0) {
 					_Utils_Tuple2(x, y - 1)
 				])));
 };
-var author$project$Moves$onlyUpRule = function (_n0) {
+var author$project$Move$onlyUpRule = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		elm$core$Set$fromList(
 			_List_fromArray(
 				[
@@ -6771,15 +6947,15 @@ var author$project$Moves$onlyUpRule = function (_n0) {
 					_Utils_Tuple2(x, y + 1)
 				])));
 };
-var author$project$Moves$pawnDirectionRule = F2(
+var author$project$Move$pawnDirectionRule = F2(
 	function (player, positions) {
 		if (player.$ === 'Black') {
-			return author$project$Moves$onlyUpRule(positions);
+			return author$project$Move$onlyUpRule(positions);
 		} else {
-			return author$project$Moves$onlyDownRule(positions);
+			return author$project$Move$onlyDownRule(positions);
 		}
 	});
-var author$project$Moves$pawnDoubleMoveRule = F2(
+var author$project$Move$pawnDoubleMoveRule = F2(
 	function (hasMoved, _n0) {
 		var x = _n0.a;
 		var y = _n0.b;
@@ -6789,9 +6965,9 @@ var author$project$Moves$pawnDoubleMoveRule = F2(
 					_Utils_Tuple2(x, y + 2),
 					_Utils_Tuple2(x, y - 2)
 				]));
-		return hasMoved ? author$project$Moves$Moves(initial) : author$project$Moves$Moves(elm$core$Set$empty);
+		return hasMoved ? author$project$Move$RuleSet(initial) : author$project$Move$RuleSet(elm$core$Set$empty);
 	});
-var author$project$Moves$pawn = function (_n0) {
+var author$project$Move$pawn = function (_n0) {
 	var player = _n0.player;
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var isBlank = _n0.isBlank;
@@ -6799,22 +6975,24 @@ var author$project$Moves$pawn = function (_n0) {
 	var outOfBounds = _n0.outOfBounds;
 	var hasMoved = _n0.hasMoved;
 	var position = _n0.position;
-	var all = author$project$Moves$allPawn(position);
-	var illegalMoves = author$project$Moves$rules(
+	var all = author$project$Move$allPawn(position);
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$pawnCollisionRule, collision, position),
-				A2(author$project$Moves$pawnAttackRules, isBlank, position),
-				A2(author$project$Moves$pawnDirectionRule, player, position),
-				A2(author$project$Moves$pawnDoubleMoveRule, hasMoved, position),
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
-				author$project$Moves$collisionRule(
-				{allMoves: all, isCollision: collision, position: position})
+				A2(author$project$Move$pawnCollisionRule, collision, position),
+				A2(author$project$Move$pawnAttackRules, isBlank, position),
+				A2(author$project$Move$pawnDirectionRule, player, position),
+				A2(author$project$Move$pawnDoubleMoveRule, hasMoved, position),
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all),
+				A3(author$project$Move$collisionRule, collision, all, position)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	return A2(
+		author$project$Move$makeSingle,
+		position,
+		A2(author$project$Move$remove, illegalRuleSet, all));
 };
-var author$project$Moves$allQueen = function (_n0) {
+var author$project$Move$allQueen = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
 	var row = A2(
@@ -6843,7 +7021,7 @@ var author$project$Moves$allQueen = function (_n0) {
 			return _Utils_Tuple2(x, value + y);
 		},
 		A2(elm$core$List$range, -8, 8));
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		function (set) {
 			return A2(elm$core$Set$diff, set, currentPosition);
 		}(
@@ -6854,23 +7032,25 @@ var author$project$Moves$allQueen = function (_n0) {
 						row,
 						_Utils_ap(positiveDiagonal, negativeDiagonal))))));
 };
-var author$project$Moves$queen = function (_n0) {
+var author$project$Move$queen = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
 	var collision = _n0.collision;
 	var position = _n0.position;
-	var all = author$project$Moves$allQueen(position);
-	var illegalMoves = author$project$Moves$rules(
+	var all = author$project$Move$allQueen(position);
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
-				author$project$Moves$collisionRule(
-				{allMoves: all, isCollision: collision, position: position})
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all),
+				A3(author$project$Move$collisionRule, collision, all, position)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	return A2(
+		author$project$Move$makeSingle,
+		position,
+		A2(author$project$Move$remove, illegalRuleSet, all));
 };
-var author$project$Moves$allRook = function (_n0) {
+var author$project$Move$allRook = function (_n0) {
 	var x = _n0.a;
 	var y = _n0.b;
 	var row = A2(
@@ -6887,51 +7067,69 @@ var author$project$Moves$allRook = function (_n0) {
 			return _Utils_Tuple2(x, value + y);
 		},
 		A2(elm$core$List$range, -8, 8));
-	return author$project$Moves$Moves(
+	return author$project$Move$RuleSet(
 		function (set) {
 			return A2(elm$core$Set$diff, set, currentPosition);
 		}(
 			elm$core$Set$fromList(
 				_Utils_ap(column, row))));
 };
-var author$project$Moves$rook = function (_n0) {
+var author$project$Move$rook = function (_n0) {
 	var belongsToPlayer = _n0.belongsToPlayer;
 	var outOfBounds = _n0.outOfBounds;
 	var position = _n0.position;
 	var collision = _n0.collision;
-	var all = author$project$Moves$allRook(position);
-	var illegalMoves = author$project$Moves$rules(
+	var all = author$project$Move$allRook(position);
+	var illegalRuleSet = author$project$Move$rules(
 		_List_fromArray(
 			[
-				A2(author$project$Moves$outOfBoundsRule, outOfBounds, all),
-				A2(author$project$Moves$attackOwnPieceRule, belongsToPlayer, all),
-				author$project$Moves$collisionRule(
-				{allMoves: all, isCollision: collision, position: position})
+				A2(author$project$Move$outOfBoundsRule, outOfBounds, all),
+				A2(author$project$Move$attackOwnPieceRule, belongsToPlayer, all),
+				A3(author$project$Move$collisionRule, collision, all, position)
 			]));
-	return A2(author$project$Moves$remove, illegalMoves, all);
+	return A2(
+		author$project$Move$makeSingle,
+		position,
+		A2(author$project$Move$remove, illegalRuleSet, all));
 };
-var author$project$Piece$validMoves = F4(
-	function (predicate, position, player, piece) {
+var author$project$Piece$move = F2(
+	function (predicate, _n0) {
+		var from = _n0.from;
+		var player = _n0.player;
+		var piece = _n0.piece;
+		var to = _n0.to;
 		switch (piece.$) {
 			case 'Pawn':
 				var hasMoved = piece.a;
-				return author$project$Moves$pawn(
-					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, hasMoved: hasMoved, isBlank: predicate.blank, outOfBounds: predicate.outOfBounds, player: player, position: position});
+				return A2(
+					author$project$Move$pawn,
+					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, hasMoved: hasMoved, isBlank: predicate.blank, outOfBounds: predicate.outOfBounds, player: player, position: from},
+					to);
 			case 'Rook':
-				return author$project$Moves$rook(
-					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: position});
+				return A2(
+					author$project$Move$rook,
+					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: from},
+					to);
 			case 'King':
-				return author$project$Moves$king(
-					{belongsToPlayer: predicate.belongsToPlayer, isThreatened: predicate.threatened, outOfBounds: predicate.outOfBounds, position: position, swapLeft: predicate.swapLeft, swapRight: predicate.swapRight});
+				return A2(
+					author$project$Move$king,
+					{belongsToPlayer: predicate.belongsToPlayer, isThreatened: predicate.threatened, outOfBounds: predicate.outOfBounds, position: from, swapLeft: predicate.swapLeft, swapRight: predicate.swapRight},
+					to);
 			case 'Queen':
-				return author$project$Moves$queen(
-					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: position});
+				return A2(
+					author$project$Move$queen,
+					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: from},
+					to);
 			case 'Bishop':
-				return author$project$Moves$bishop(
-					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: position});
+				return A2(
+					author$project$Move$bishop,
+					{belongsToPlayer: predicate.belongsToPlayer, collision: predicate.collision, outOfBounds: predicate.outOfBounds, position: from},
+					to);
 			default:
-				return author$project$Moves$knight(
-					{belongsToPlayer: predicate.belongsToPlayer, outOfBounds: predicate.outOfBounds, position: position});
+				return A2(
+					author$project$Move$knight,
+					{belongsToPlayer: predicate.belongsToPlayer, outOfBounds: predicate.outOfBounds, position: from},
+					to);
 		}
 	});
 var author$project$Square$belongs = F2(
@@ -6966,10 +7164,6 @@ var author$project$Piece$isUnmovedRook = function (piece) {
 		return false;
 	}
 };
-var author$project$Player$equal = F2(
-	function (p1, p2) {
-		return _Utils_eq(p1, p2);
-	});
 var author$project$Square$check = F3(
 	function (getSquare, condition, position) {
 		return A2(
@@ -6980,16 +7174,6 @@ var author$project$Square$check = F3(
 				author$project$Predicate$check(condition),
 				getSquare(position)));
 	});
-var author$project$Square$toMaybe = function (square) {
-	if (square.$ === 'Empty') {
-		return elm$core$Maybe$Nothing;
-	} else {
-		var player = square.a;
-		var piece = square.b;
-		return elm$core$Maybe$Just(
-			_Utils_Tuple2(player, piece));
-	}
-};
 var author$project$Square$checkPiece = F4(
 	function (getSquare, playerCondition, pieceCondition, position) {
 		var checkSquare = function (square) {
@@ -7053,13 +7237,13 @@ var author$project$Square$canSwapLeft = F3(
 		var isUnmovedRook = A4(
 			author$project$Square$checkPiece,
 			getSquare,
-			author$project$Player$equal(player),
+			elm$core$Basics$eq(player),
 			author$project$Piece$isUnmovedRook,
-			_Utils_Tuple2(x - 4, y));
+			_Utils_Tuple2(x - 3, y));
 		var isUnmovedKing = A4(
 			author$project$Square$checkPiece,
 			getSquare,
-			author$project$Player$equal(player),
+			elm$core$Basics$eq(player),
 			author$project$Piece$isUnmovedKing,
 			_Utils_Tuple2(x, y));
 		var blankSide = A2(
@@ -7068,8 +7252,7 @@ var author$project$Square$canSwapLeft = F3(
 			_List_fromArray(
 				[
 					_Utils_Tuple2(x - 1, y),
-					_Utils_Tuple2(x - 2, y),
-					_Utils_Tuple2(x - 3, y)
+					_Utils_Tuple2(x - 2, y)
 				]));
 		return blankSide && (isUnmovedRook && isUnmovedKing);
 	});
@@ -7080,13 +7263,13 @@ var author$project$Square$canSwapRight = F3(
 		var isUnmovedRook = A4(
 			author$project$Square$checkPiece,
 			fromBoard,
-			author$project$Player$equal(player),
+			elm$core$Basics$eq(player),
 			author$project$Piece$isUnmovedRook,
-			_Utils_Tuple2(x + 3, y));
+			_Utils_Tuple2(x + 4, y));
 		var isUnmovedKing = A4(
 			author$project$Square$checkPiece,
 			fromBoard,
-			author$project$Player$equal(player),
+			elm$core$Basics$eq(player),
 			author$project$Piece$isUnmovedKing,
 			_Utils_Tuple2(x, y));
 		var blankSide = A2(
@@ -7095,15 +7278,16 @@ var author$project$Square$canSwapRight = F3(
 			_List_fromArray(
 				[
 					_Utils_Tuple2(x + 1, y),
-					_Utils_Tuple2(x + 2, y)
+					_Utils_Tuple2(x + 2, y),
+					_Utils_Tuple2(x + 3, y)
 				]));
 		return blankSide && (isUnmovedRook && isUnmovedKing);
 	});
 var author$project$Square$collision = A2(elm$core$Basics$composeL, elm$core$Basics$not, author$project$Square$blank);
-var author$project$ChessBoard$findMovesNoThreat = F4(
-	function (board, position, player, piece) {
-		return A4(
-			author$project$Piece$validMoves,
+var author$project$ChessBoard$simulateMove = F5(
+	function (board, from, player, piece, to) {
+		return A2(
+			author$project$Piece$move,
 			{
 				belongsToPlayer: A2(
 					author$project$Square$check,
@@ -7130,9 +7314,7 @@ var author$project$ChessBoard$findMovesNoThreat = F4(
 					return false;
 				}
 			},
-			position,
-			player,
-			piece);
+			{from: from, piece: piece, player: player, to: to});
 	});
 var author$project$Square$applyIfOwner = F3(
 	function (player, f, square) {
@@ -7149,75 +7331,20 @@ var author$project$ChessBoard$simulateSelect = F3(
 	function (board, player, position) {
 		var selected = F2(
 			function (owner, piece) {
-				return {
-					moves: A4(author$project$ChessBoard$findMovesNoThreat, board, position, owner, piece),
-					piece: piece,
-					player: owner,
-					position: position
-				};
+				return function (mover) {
+					return {move: mover, piece: piece, player: owner};
+				}(
+					A4(author$project$ChessBoard$simulateMove, board, position, owner, piece));
 			});
 		return A2(
 			elm$core$Maybe$andThen,
 			A2(author$project$Square$applyIfOwner, player, selected),
 			A2(author$project$Board$get, board, position));
 	});
-var elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _n1 = A2(elm$core$Basics$compare, targetKey, key);
-				switch (_n1.$) {
-					case 'LT':
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 'EQ':
-						return elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
-var elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _n0 = A2(elm$core$Dict$get, key, dict);
-		if (_n0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
-var elm$core$Set$member = F2(
-	function (key, _n0) {
-		var dict = _n0.a;
-		return A2(elm$core$Dict$member, key, dict);
-	});
-var author$project$Moves$member = F2(
-	function (position, _n0) {
-		var move = _n0.a;
-		return A2(elm$core$Set$member, position, move);
-	});
-var author$project$Moves$contains = F2(
-	function (position, moves) {
-		return A2(
-			author$project$Moves$member,
-			position,
-			author$project$Moves$rules(moves));
-	});
+var elm$core$Basics$neq = _Utils_notEqual;
+var author$project$Move$isValid = function (move) {
+	return !_Utils_eq(move, author$project$Move$Invalid);
+};
 var elm$core$Basics$composeR = F3(
 	function (f, g, x) {
 		return g(
@@ -7247,34 +7374,27 @@ var author$project$ChessBoard$threatened = function (_n0) {
 	var piece = _n0.piece;
 	var start = _n0.start;
 	var attempt = _n0.attempt;
-	var simulateBoard = A2(
-		author$project$ChessBoard$move,
-		_List_fromArray(
-			[
-				{
-				from: start,
-				ownedPiece: _Utils_Tuple2(player, piece),
-				to: attempt
-			}
-			]),
-		board);
 	var opponent = author$project$Player$next(player);
-	var opponentsRange = A2(
+	var opponentsPossibleMoves = A2(
 		elm$core$List$filterMap,
 		A2(
 			elm$core$Basics$composeR,
-			A2(author$project$ChessBoard$simulateSelect, simulateBoard, opponent),
+			A2(author$project$ChessBoard$simulateSelect, board, opponent),
 			elm$core$Maybe$map(
 				function ($) {
-					return $.moves;
+					return $.move;
 				})),
 		author$project$Board$positions);
-	return A2(author$project$Moves$contains, attempt, opponentsRange);
+	var canMoveTo = function (mover) {
+		return author$project$Move$isValid(
+			mover(attempt));
+	};
+	return A2(elm$core$List$all, canMoveTo, opponentsPossibleMoves);
 };
-var author$project$ChessBoard$findMoves = F4(
-	function (board, position, player, piece) {
-		return A4(
-			author$project$Piece$validMoves,
+var author$project$ChessBoard$makeMove = F5(
+	function (board, from, player, piece, to) {
+		return A2(
+			author$project$Piece$move,
 			{
 				belongsToPlayer: A2(
 					author$project$Square$check,
@@ -7297,25 +7417,21 @@ var author$project$ChessBoard$findMoves = F4(
 					author$project$Square$canSwapRight,
 					author$project$Board$get(board),
 					player),
-				threatened: function (to) {
+				threatened: function (toAttempt) {
 					return author$project$ChessBoard$threatened(
-						{attempt: to, board: board, piece: piece, player: player, start: position});
+						{attempt: toAttempt, board: board, piece: piece, player: player, start: from});
 				}
 			},
-			position,
-			player,
-			piece);
+			{from: from, piece: piece, player: player, to: to});
 	});
 var author$project$ChessBoard$select = F3(
 	function (board, player, position) {
 		var selected = F2(
 			function (owner, piece) {
-				return {
-					moves: A4(author$project$ChessBoard$findMoves, board, position, owner, piece),
-					piece: piece,
-					player: owner,
-					position: position
-				};
+				return function (mover) {
+					return {move: mover, piece: piece, player: owner};
+				}(
+					A4(author$project$ChessBoard$makeMove, board, position, owner, piece));
 			});
 		return A2(
 			elm$core$Maybe$andThen,
@@ -7327,9 +7443,7 @@ var author$project$Main$select = F2(
 		return _Utils_update(
 			model,
 			{
-				message: 'Selected: ' + (elm$core$String$fromInt(
-					author$project$Position$getX(position)) + (' ' + elm$core$String$fromInt(
-					author$project$Position$getY(position)))),
+				message: 'Choose where to move.',
 				selected: A3(author$project$ChessBoard$select, model.board, model.current, position)
 			});
 	});
@@ -7338,22 +7452,23 @@ var author$project$Main$click = F2(
 		var _n0 = model.selected;
 		if (_n0.$ === 'Just') {
 			var selected = _n0.a;
-			return A2(author$project$Moves$member, position, selected.moves) ? A2(
-				author$project$Main$makeChanges,
-				model,
-				_List_fromArray(
-					[
-						{
-						from: selected.position,
-						ownedPiece: _Utils_Tuple2(selected.player, selected.piece),
-						to: position
-					}
-					])) : A2(
-				author$project$Main$select,
-				position,
-				_Utils_update(
-					model,
-					{selected: elm$core$Maybe$Nothing}));
+			return A2(
+				elm$core$Maybe$withDefault,
+				A2(
+					author$project$Main$select,
+					position,
+					_Utils_update(
+						model,
+						{selected: elm$core$Maybe$Nothing})),
+				A2(
+					elm$core$Maybe$map,
+					function (board) {
+						return A2(author$project$Main$makeChanges, model, board);
+					},
+					A2(
+						author$project$ChessBoard$performMove,
+						model.board,
+						selected.move(position))));
 		} else {
 			return A2(author$project$Main$select, position, model);
 		}
@@ -10658,7 +10773,6 @@ var mdgriffith$elm_ui$Internal$Model$renderNullAdjustmentRule = F2(
 						]))
 				]));
 	});
-var elm$core$Basics$neq = _Utils_notEqual;
 var elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -12905,8 +13019,9 @@ var author$project$Main$Click = function (a) {
 var author$project$Main$highlighter = F2(
 	function (selected, position) {
 		if (selected.$ === 'Just') {
-			var moves = selected.a.moves;
-			return A2(author$project$Moves$member, position, moves);
+			var move = selected.a.move;
+			return author$project$Move$isValid(
+				move(position));
 		} else {
 			return false;
 		}
@@ -12918,7 +13033,7 @@ var author$project$Player$show = function (player) {
 		return 'Black';
 	}
 };
-var author$project$Player$display = function (player) {
+var author$project$Player$view = function (player) {
 	return mdgriffith$elm_ui$Element$text(
 		author$project$Player$show(player));
 };
@@ -13233,7 +13348,7 @@ var author$project$Main$viewHelper = function (model) {
 								});
 						})
 				}),
-				author$project$Player$display(model.current),
+				author$project$Player$view(model.current),
 				mdgriffith$elm_ui$Element$text(model.message)
 			]));
 };
