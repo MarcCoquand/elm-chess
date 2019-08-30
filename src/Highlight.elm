@@ -8,6 +8,7 @@ type Highlight
     = Blue
     | Red
     | None
+    | Green
 
 
 setBackground color =
@@ -18,8 +19,15 @@ setBackground color =
         Red ->
             Background.color red
 
+        Green ->
+            Background.color green
+
         None ->
             Background.color white
+
+
+green =
+    Element.rgb255 200 255 200
 
 
 white =

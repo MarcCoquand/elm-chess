@@ -1,7 +1,6 @@
 module Move exposing
     ( Move(..)
     , bishop
-    , checkAll
     , checkMate
     , contains
     , empty
@@ -29,6 +28,7 @@ import Set.Extra exposing (unions)
 type Move
     = Single { from : Position, to : Position }
     | Swap { from : Position, to : Position, swapFrom : Position, swapTo : Position }
+    | Change { from : Position, to : Position }
     | Invalid
 
 
@@ -48,6 +48,9 @@ highlight move =
 
         Swap _ ->
             Highlight.Red
+
+        Change _ ->
+            Highlight.Green
 
         Invalid ->
             Highlight.None
@@ -77,10 +80,11 @@ empty =
     RuleSet Set.empty
 
 
-checkAll : (Position -> Bool) -> RuleSet a -> Bool
-checkAll condition (RuleSet moves) =
-    Set.filter (not << condition) moves
-        |> (\set -> set == Set.empty)
+
+-- checkAll : (Position -> Bool) -> RuleSet a -> Bool
+-- checkAll condition (RuleSet moves) =
+-- Set.filter (not << condition) moves
+-- |> (\set -> set == Set.empty)
 
 
 union : RuleSet a -> RuleSet a -> RuleSet a
@@ -146,6 +150,9 @@ toList move =
 
         Swap { from, to, swapFrom, swapTo } ->
             [ { from = from, to = to }, { from = swapFrom, to = swapTo } ]
+
+        Change m ->
+            [ m ]
 
         Invalid ->
             []

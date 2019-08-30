@@ -31,29 +31,31 @@ type Board square
 
 
 viewRow :
-    { renderSquare : Int -> e -> msg -> Element msg
+    { renderSquare : Int -> Int -> e -> msg -> Element msg
     , indexedMsg : Int -> msg
     , row : Array e
+    , length : Int
     }
     -> Element msg
-viewRow { renderSquare, indexedMsg, row } =
+viewRow { renderSquare, indexedMsg, row, length } =
     row
         |> Array.toIndexedList
         |> List.map
             (\( rowIndex, e ) ->
-                renderSquare rowIndex e (indexedMsg rowIndex)
+                renderSquare rowIndex (length // 8) e (indexedMsg rowIndex)
             )
         |> Element.row
             []
 
 
 view :
-    { renderSquare : Position -> e -> msg -> Element msg
+    { renderSquare : Position -> Int -> e -> msg -> Element msg
     , indexedMsg : Position -> msg
+    , length : Int
     , board : Board e
     }
     -> Element msg
-view { renderSquare, indexedMsg, board } =
+view { renderSquare, indexedMsg, board, length } =
     let
         (CreateBoard array) =
             board
@@ -66,7 +68,11 @@ view { renderSquare, indexedMsg, board } =
                     { renderSquare =
                         \rowIndex ->
                             renderSquare
-                                (Position.make { x = rowIndex, y = columnIndex })
+                                (Position.make
+                                    { x = rowIndex
+                                    , y = columnIndex
+                                    }
+                                )
                     , indexedMsg =
                         \rowIndex ->
                             indexedMsg
@@ -74,11 +80,14 @@ view { renderSquare, indexedMsg, board } =
                                     { x = rowIndex, y = columnIndex }
                                 )
                     , row = row
+                    , length = length
                     }
             )
         |> Element.column
-            [ Font.size 50
+            [ Font.size (length // 8)
             , Font.family [ Font.monospace ]
+            , Element.width (Element.px length)
+            , Element.height (Element.px length)
             ]
 
 

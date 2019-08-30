@@ -35,8 +35,8 @@ type Square
     | Contains Player Piece
 
 
-view : { color : Highlight, square : Square, onClick : msg } -> Element msg
-view { color, square, onClick } =
+view : { size : Int, color : Highlight, square : Square, onClick : msg } -> Element msg
+view { size, color, square, onClick } =
     case square of
         Empty ->
             Input.button
@@ -45,13 +45,13 @@ view { color, square, onClick } =
                 , Border.width 2
                 , Element.height
                     (Element.fill
-                        |> Element.maximum 50
-                        |> Element.minimum 50
+                        |> Element.maximum size
+                        |> Element.minimum size
                     )
                 , Element.width
                     (Element.fill
-                        |> Element.maximum 50
-                        |> Element.minimum 50
+                        |> Element.maximum size
+                        |> Element.minimum size
                     )
                 ]
                 { onPress = Just onClick, label = Element.text " " }
@@ -64,13 +64,13 @@ view { color, square, onClick } =
                 , Border.width 2
                 , Element.height
                     (Element.fill
-                        |> Element.maximum 50
-                        |> Element.minimum 50
+                        |> Element.maximum size
+                        |> Element.minimum size
                     )
                 , Element.width
                     (Element.fill
-                        |> Element.maximum 50
-                        |> Element.minimum 50
+                        |> Element.maximum size
+                        |> Element.minimum size
                     )
                 ]
                 { onPress = Just onClick, label = Piece.view player piece }
@@ -84,16 +84,6 @@ toMaybe square =
 
         Contains player piece ->
             Just ( player, piece )
-
-
-isOpponentOf : Player -> Square -> Bool
-isOpponentOf player square =
-    case square of
-        Empty ->
-            False
-
-        Contains owner _ ->
-            owner /= player
 
 
 updatePiece : Square -> Square
@@ -132,6 +122,16 @@ apply f square =
 
 
 -- PREDICATES
+
+
+isOpponentOf : Player -> Square -> Bool
+isOpponentOf player square =
+    case square of
+        Empty ->
+            False
+
+        Contains owner _ ->
+            owner /= player
 
 
 belongs : Player -> Square -> Bool

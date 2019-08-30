@@ -2,6 +2,8 @@ module Main exposing (main)
 
 import Board exposing (Board)
 import Browser
+import Browser.Dom as Dom
+import Browser.Events as Events
 import ChessBoard exposing (ChessBoard)
 import Element exposing (Element)
 import Highlight exposing (Highlight)
@@ -10,10 +12,22 @@ import Piece exposing (Piece)
 import Player exposing (Player)
 import Position exposing (Position)
 import Square exposing (Square)
+import Task exposing (Task)
+
+
+getSize : Task x Float
+getSize =
+    Dom.getViewport
+        |> Task.map .viewport
+        |> Task.map
+            (\viewport ->
+                min viewport.width viewport.height
+            )
 
 
 type Msg
     = Click Position
+    | Resize Float
 
 
 type alias Model =
@@ -21,6 +35,7 @@ type alias Model =
     , board : ChessBoard
     , message : String
     , selected : Maybe ChessBoard.Selected
+    , size : Int
     }
 
 
@@ -42,6 +57,7 @@ load =
                 , board = board
                 , message = "Welcome!"
                 , selected = Nothing
+                , size = 0
                 }
 
         Nothing ->
@@ -50,7 +66,7 @@ load =
 
 init : ( Loader, Cmd Msg )
 init =
-    ( load, Cmd.none )
+    ( load, Task.perform Resize getSize )
 
 
 makeChanges :
@@ -62,7 +78,13 @@ makeChanges model board =
     , board = board
     , message = "Performed move!"
     , selected = Nothing
+    , size = model.size
     }
+
+
+setSize : Model -> Float -> Model
+setSize model newSize =
+    { model | size = round newSize }
 
 
 select : Position -> Model -> Model
@@ -90,13 +112,16 @@ click position model =
 
 
 update : Msg -> Loader -> ( Loader, Cmd Msg )
-update (Click position) model =
-    case model of
-        Loaded data ->
-            ( Loaded (click position data), Cmd.none )
+update msg loader =
+    case ( msg, loader ) of
+        ( Click position, Loaded model ) ->
+            ( Loaded (click position model), Cmd.none )
 
-        Failed ->
-            ( model, Cmd.none )
+        ( Resize size, Loaded model ) ->
+            ( Loaded (setSize model size), Cmd.none )
+
+        ( _, Failed ) ->
+            ( loader, Cmd.none )
 
 
 highlight : Maybe ChessBoard.Selected -> Position -> Highlight
@@ -111,17 +136,19 @@ highlight selected position =
 
 viewGame : Model -> Element Msg
 viewGame model =
-    Element.column []
+    Element.column [ Element.centerX ]
         [ Board.view
             { renderSquare =
-                \position square msg ->
+                \position length square msg ->
                     Square.view
                         { square = square
                         , onClick = msg
                         , color = highlight model.selected position
+                        , size = length
                         }
             , indexedMsg = Click
             , board = model.board
+            , length = model.size
             }
         , Player.view model.current
         , Element.text model.message
@@ -147,11 +174,21 @@ view model =
             }
 
 
+handleResize : Sub Msg
+handleResize =
+    Events.onResize
+        (\x y ->
+            min (toFloat x) (toFloat y)
+                |> Resize
+        )
+
+
 main : Program () Loader Msg
 main =
     Browser.document
         { init = \_ -> init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions =
+            \_ -> handleResize
         }
