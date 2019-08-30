@@ -15,19 +15,20 @@ import Square exposing (Square)
 import Task exposing (Task)
 
 
-getSize : Task x Float
+getSize : Task x Int
 getSize =
     Dom.getViewport
         |> Task.map .viewport
         |> Task.map
             (\viewport ->
                 min viewport.width viewport.height
+                    |> round
             )
 
 
 type Msg
     = Click Position
-    | Resize Float
+    | Resize Int
 
 
 type alias Model =
@@ -82,9 +83,9 @@ makeChanges model board =
     }
 
 
-setSize : Model -> Float -> Model
+setSize : Model -> Int -> Model
 setSize model newSize =
-    { model | size = round newSize }
+    { model | size = newSize }
 
 
 select : Position -> Model -> Model
@@ -176,11 +177,7 @@ view model =
 
 handleResize : Sub Msg
 handleResize =
-    Events.onResize
-        (\x y ->
-            min (toFloat x) (toFloat y)
-                |> Resize
-        )
+    Events.onResize (\x y -> Resize (min x y))
 
 
 main : Program () Loader Msg
