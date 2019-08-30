@@ -19,6 +19,7 @@ module Square exposing
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Highlight exposing (Highlight)
 import Html exposing (Html)
@@ -42,11 +43,36 @@ view { color, square, onClick } =
                 [ Highlight.setBackground color
                 , Border.solid
                 , Border.width 2
+                , Element.height
+                    (Element.fill
+                        |> Element.maximum 50
+                        |> Element.minimum 50
+                    )
+                , Element.width
+                    (Element.fill
+                        |> Element.maximum 50
+                        |> Element.minimum 50
+                    )
                 ]
                 { onPress = Just onClick, label = Element.text " " }
 
         Contains player piece ->
-            Input.button [ Highlight.setBackground color, Border.solid, Border.width 2 ]
+            Input.button
+                [ Highlight.setBackground color
+                , Font.center
+                , Border.solid
+                , Border.width 2
+                , Element.height
+                    (Element.fill
+                        |> Element.maximum 50
+                        |> Element.minimum 50
+                    )
+                , Element.width
+                    (Element.fill
+                        |> Element.maximum 50
+                        |> Element.minimum 50
+                    )
+                ]
                 { onPress = Just onClick, label = Piece.view player piece }
 
 

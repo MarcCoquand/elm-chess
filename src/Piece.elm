@@ -11,6 +11,7 @@ module Piece exposing
     )
 
 import Element exposing (Element)
+import Element.Font as Font exposing (Font)
 import Move exposing (Move)
 import Player exposing (Player(..))
 import Position exposing (Position)
@@ -85,7 +86,7 @@ update piece =
 
 view : Player -> Piece -> Element msg
 view player piece =
-    Element.text (show player piece)
+    Element.el [ Font.center, Element.centerX, Element.centerY ] (Element.text (show player piece))
 
 
 move :

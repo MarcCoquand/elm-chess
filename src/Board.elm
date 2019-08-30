@@ -43,7 +43,8 @@ viewRow { renderSquare, indexedMsg, row } =
             (\( rowIndex, e ) ->
                 renderSquare rowIndex e (indexedMsg rowIndex)
             )
-        |> Element.row [ Element.width Element.fill ]
+        |> Element.row
+            []
 
 
 view :
@@ -76,8 +77,7 @@ view { renderSquare, indexedMsg, board } =
                     }
             )
         |> Element.column
-            [ Element.height Element.fill
-            , Font.size 50
+            [ Font.size 50
             , Font.family [ Font.monospace ]
             ]
 
