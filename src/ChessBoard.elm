@@ -94,6 +94,16 @@ performMove board move =
                             board
                     )
 
+        Move.Change { from, to } ->
+            Board.get board from
+                |> Maybe.andThen Square.toMaybe
+                |> Maybe.map
+                    (\( player, piece ) ->
+                        change [ { piece = piece, player = player, from = from, to = to } ]
+                            board
+                    )
+                |> Debug.log "TODO: Implement change pieces"
+
         Move.Swap { from, to, swapFrom, swapTo } ->
             let
                 swapPiece =
@@ -184,8 +194,8 @@ threatened { board, player, piece, start, attempt } =
         opponent =
             Player.next player
 
-        canMoveTo mover =
-            mover attempt
+        canMoveTo moveFunction =
+            moveFunction attempt
                 |> Move.isValid
 
         opponentsPossibleMoves =

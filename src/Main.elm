@@ -15,17 +15,17 @@ import Square exposing (Square)
 import Task exposing (Task)
 
 
-getSize : Task x Int
+getSize : Task x ( Int, Int )
 getSize =
     Dom.getViewport
         |> Task.map .viewport
         |> Task.map
-            (\viewport -> round (min viewport.width viewport.height))
+            (\{ width, height } -> ( round width, round height ))
 
 
 type Msg
     = Click Position
-    | Resize Int
+    | Resize ( Int, Int )
 
 
 type alias Model =
@@ -55,7 +55,7 @@ load =
                 , board = board
                 , message = "Welcome!"
                 , selected = Nothing
-                , size = 0
+                , size = 700
                 }
 
         Nothing ->
@@ -80,9 +80,9 @@ makeChanges model board =
     }
 
 
-setSize : Model -> Int -> Model
-setSize model newSize =
-    { model | size = newSize }
+setSize : Model -> ( Int, Int ) -> Model
+setSize model ( x, y ) =
+    { model | size = min x y }
 
 
 select : Position -> Model -> Model
@@ -134,7 +134,7 @@ highlight selected position =
 
 viewGame : Model -> Element Msg
 viewGame model =
-    Element.column [ Element.centerX ]
+    Element.wrappedRow [ Element.centerX ]
         [ Board.view
             { renderSquare =
                 \position length square msg ->
@@ -149,7 +149,8 @@ viewGame model =
             , length = model.size
             }
         , Player.view model.current
-        , Element.text model.message
+        , Element.text
+            model.message
         ]
 
 
@@ -174,7 +175,7 @@ view model =
 
 handleResize : Sub Msg
 handleResize =
-    Events.onResize (\x y -> Resize (min x y))
+    Events.onResize (\x y -> Resize ( x, y ))
 
 
 main : Program () Loader Msg
