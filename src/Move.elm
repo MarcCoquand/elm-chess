@@ -97,12 +97,6 @@ bishop arguments =
 -- KING
 
 
-{-|
-
-    In the future this function should be generated for all of them to perform
-    less checks.
-
--}
 king :
     { belongsToPlayer : Predicate Position
     , outOfBounds : Predicate Position

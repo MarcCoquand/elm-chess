@@ -1,10 +1,12 @@
 module Piece exposing
     ( HasMoved
     , Piece(..)
+    , allPossibleMoves
     , isKing
     , isUnmovedKing
     , isUnmovedRook
     , move
+    , rule
     , show
     , update
     , view
@@ -13,6 +15,7 @@ module Piece exposing
 import Element exposing (Element)
 import Element.Font as Font exposing (Font)
 import Move exposing (Move)
+import Move.Ruleset as Ruleset exposing (Illegal, Ruleset, Valid)
 import Player exposing (Player(..))
 import Position exposing (Position)
 import Predicate exposing (Predicate)
@@ -30,6 +33,17 @@ type Piece
     | Queen
     | Bishop
     | Knight
+
+
+type alias BoardPredicates =
+    { blank : Predicate Position
+    , collision : Predicate Position
+    , outOfBounds : Predicate Position
+    , swapRight : Predicate Position
+    , swapLeft : Predicate Position
+    , threatened : Predicate Position
+    , belongsToPlayer : Predicate Position
+    }
 
 
 isUnmovedRook : Piece -> Bool
@@ -90,14 +104,7 @@ view player piece =
 
 
 move :
-    { blank : Predicate Position
-    , collision : Predicate Position
-    , outOfBounds : Predicate Position
-    , swapRight : Predicate Position
-    , swapLeft : Predicate Position
-    , threatened : Predicate Position
-    , belongsToPlayer : Predicate Position
-    }
+    BoardPredicates
     ->
         { from : Position
         , player : Player
@@ -164,6 +171,84 @@ move predicate { from, player, piece, to } =
                 , position = from
                 }
                 to
+
+
+rule :
+    BoardPredicates
+    ->
+        { from : Position
+        , player : Player
+        , piece : Piece
+        }
+    -> Ruleset Valid
+rule predicate { from, player, piece } =
+    case piece of
+        Pawn hasMoved ->
+            Ruleset.pawn
+                { player = player
+                , belongsToPlayer = predicate.belongsToPlayer
+                , isBlank = predicate.blank
+                , collision = predicate.collision
+                , outOfBounds = predicate.outOfBounds
+                , hasMoved = hasMoved
+                , position = from
+                }
+
+        Rook _ ->
+            Ruleset.rook
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = from
+                , collision = predicate.collision
+                }
+
+        King _ ->
+            Ruleset.king
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , isThreatened = predicate.threatened
+                , position = from
+                , swapRight = predicate.swapRight
+                , swapLeft = predicate.swapLeft
+                }
+
+        Queen ->
+            Ruleset.queen
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = from
+                , collision = predicate.collision
+                }
+
+        Bishop ->
+            Ruleset.bishop
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = from
+                , collision = predicate.collision
+                }
+
+        Knight ->
+            Ruleset.knight
+                { belongsToPlayer = predicate.belongsToPlayer
+                , outOfBounds = predicate.outOfBounds
+                , position = from
+                }
+
+
+allPossibleMoves : BoardPredicates -> Player -> List ( Position, Piece ) -> Ruleset Valid
+allPossibleMoves predicates player pieces =
+    pieces
+        |> List.map
+            (\( position, piece ) ->
+                rule predicates
+                    { from = position
+                    , piece =
+                        piece
+                    , player = player
+                    }
+            )
+        |> Ruleset.rules
 
 
 show : Player -> Piece -> String

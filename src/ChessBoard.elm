@@ -10,6 +10,7 @@ module ChessBoard exposing
 import Board exposing (Board)
 import Highlight exposing (Highlight)
 import Move exposing (Move)
+import Move.Ruleset as Ruleset exposing (Ruleset, Valid)
 import Piece exposing (Piece(..))
 import Player exposing (Player)
 import Position exposing (Position)
@@ -138,9 +139,9 @@ simulateMove :
     -> Position
     -> Player
     -> Piece
-    -> (Position -> Move)
-simulateMove board from player piece to =
-    Piece.move
+    -> Ruleset Valid
+simulateMove board from player piece =
+    Piece.rule
         { blank = Square.check (Board.get board) Square.blank
         , collision = Square.check (Board.get board) Square.collision
         , outOfBounds = not << Board.inBounds
@@ -152,7 +153,6 @@ simulateMove board from player piece to =
         { from = from
         , player = player
         , piece = piece
-        , to = to
         }
 
 
@@ -172,17 +172,11 @@ select board player position =
         |> Maybe.andThen (Square.applyIfOwner player selected)
 
 
-simulateSelect : ChessBoard -> Player -> Position -> Maybe Selected
+simulateSelect : ChessBoard -> Player -> Position -> Maybe (Ruleset Valid)
 simulateSelect board player position =
     let
         selected owner piece =
             simulateMove board position owner piece
-                |> (\mover ->
-                        { player = owner
-                        , move = mover
-                        , piece = piece
-                        }
-                   )
     in
     Board.get board position
         |> Maybe.andThen (Square.applyIfOwner player selected)
@@ -194,12 +188,11 @@ threatened { board, player, piece, start, attempt } =
         opponent =
             Player.next player
 
-        canMoveTo moveFunction =
-            moveFunction attempt
-                |> Move.isValid
+        canMoveTo =
+            Ruleset.member attempt
 
         opponentsPossibleMoves =
-            List.filterMap (simulateSelect board opponent >> Maybe.map .move) Board.positions
+            List.filterMap (simulateSelect board opponent) Board.positions
     in
     List.all canMoveTo opponentsPossibleMoves
 
