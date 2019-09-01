@@ -176,12 +176,12 @@ move predicate { from, player, piece, to } =
 rule :
     BoardPredicates
     ->
-        { from : Position
+        { position : Position
         , player : Player
         , piece : Piece
         }
     -> Ruleset Valid
-rule predicate { from, player, piece } =
+rule predicate { position, player, piece } =
     case piece of
         Pawn hasMoved ->
             Ruleset.pawn
@@ -191,14 +191,14 @@ rule predicate { from, player, piece } =
                 , collision = predicate.collision
                 , outOfBounds = predicate.outOfBounds
                 , hasMoved = hasMoved
-                , position = from
+                , position = position
                 }
 
         Rook _ ->
             Ruleset.rook
                 { belongsToPlayer = predicate.belongsToPlayer
                 , outOfBounds = predicate.outOfBounds
-                , position = from
+                , position = position
                 , collision = predicate.collision
                 }
 
@@ -207,7 +207,7 @@ rule predicate { from, player, piece } =
                 { belongsToPlayer = predicate.belongsToPlayer
                 , outOfBounds = predicate.outOfBounds
                 , isThreatened = predicate.threatened
-                , position = from
+                , position = position
                 , swapRight = predicate.swapRight
                 , swapLeft = predicate.swapLeft
                 }
@@ -216,7 +216,7 @@ rule predicate { from, player, piece } =
             Ruleset.queen
                 { belongsToPlayer = predicate.belongsToPlayer
                 , outOfBounds = predicate.outOfBounds
-                , position = from
+                , position = position
                 , collision = predicate.collision
                 }
 
@@ -224,7 +224,7 @@ rule predicate { from, player, piece } =
             Ruleset.bishop
                 { belongsToPlayer = predicate.belongsToPlayer
                 , outOfBounds = predicate.outOfBounds
-                , position = from
+                , position = position
                 , collision = predicate.collision
                 }
 
@@ -232,7 +232,7 @@ rule predicate { from, player, piece } =
             Ruleset.knight
                 { belongsToPlayer = predicate.belongsToPlayer
                 , outOfBounds = predicate.outOfBounds
-                , position = from
+                , position = position
                 }
 
 
@@ -242,9 +242,8 @@ allPossibleMoves predicates player pieces =
         |> List.map
             (\( position, piece ) ->
                 rule predicates
-                    { from = position
-                    , piece =
-                        piece
+                    { position = position
+                    , piece = piece
                     , player = player
                     }
             )

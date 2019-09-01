@@ -43,16 +43,7 @@ makeMove board from player piece to =
         , outOfBounds = not << Board.inBounds
         , swapRight = Square.canSwapRight (Board.get board) player
         , swapLeft = Square.canSwapLeft (Board.get board) player
-        , threatened =
-            \toAttempt ->
-                threatened
-                    { board = board
-                    , player = player
-                    , piece =
-                        piece
-                    , start = from
-                    , attempt = toAttempt
-                    }
+        , threatened = threatened board player from
         , belongsToPlayer = Square.check (Board.get board) (Square.belongs player)
         }
         { from = from
@@ -81,6 +72,17 @@ change pieces board =
                 pieces
     in
     Board.update coordinates board
+
+
+simulateMove : { from : Position, to : Position } -> ChessBoard -> Maybe ChessBoard
+simulateMove { from, to } board =
+    Board.get board from
+        |> Maybe.andThen Square.toMaybe
+        |> Maybe.map
+            (\( player, piece ) ->
+                change [ { piece = piece, player = player, from = from, to = to } ]
+                    board
+            )
 
 
 performMove : ChessBoard -> Move -> Maybe ChessBoard
@@ -134,28 +136,6 @@ performMove board move =
             Nothing
 
 
-simulateMove :
-    ChessBoard
-    -> Position
-    -> Player
-    -> Piece
-    -> Ruleset Valid
-simulateMove board from player piece =
-    Piece.rule
-        { blank = Square.check (Board.get board) Square.blank
-        , collision = Square.check (Board.get board) Square.collision
-        , outOfBounds = not << Board.inBounds
-        , swapRight = Square.canSwapRight (Board.get board) player
-        , swapLeft = Square.canSwapLeft (Board.get board) player
-        , threatened = \_ -> False
-        , belongsToPlayer = Square.check (Board.get board) (Square.belongs player)
-        }
-        { from = from
-        , player = player
-        , piece = piece
-        }
-
-
 select : ChessBoard -> Player -> Position -> Maybe Selected
 select board player position =
     let
@@ -172,29 +152,62 @@ select board player position =
         |> Maybe.andThen (Square.applyIfOwner player selected)
 
 
-simulateSelect : ChessBoard -> Player -> Position -> Maybe (Ruleset Valid)
-simulateSelect board player position =
+getAllBelongingTo : Player -> ChessBoard -> List ( Position, Piece )
+getAllBelongingTo player board =
     let
-        selected owner piece =
-            simulateMove board position owner piece
+        getPieceIfOwner square =
+            Square.toMaybe square
+                |> Maybe.andThen
+                    (\( owner, piece ) ->
+                        if owner == player then
+                            Just piece
+
+                        else
+                            Nothing
+                    )
     in
-    Board.get board position
-        |> Maybe.andThen (Square.applyIfOwner player selected)
+    board
+        |> Board.toIndexedList
+        |> List.filterMap
+            (\( pos, square ) ->
+                getPieceIfOwner square
+                    |> Maybe.map (\piece -> ( pos, piece ))
+            )
 
 
-threatened : { board : ChessBoard, player : Player, piece : Piece, start : Position, attempt : Position } -> Bool
-threatened { board, player, piece, start, attempt } =
+possibleMoves : Player -> ChessBoard -> Ruleset Valid
+possibleMoves player board =
+    board
+        |> getAllBelongingTo player
+        |> Piece.allPossibleMoves
+            { blank = Square.check (Board.get board) Square.blank
+            , collision = Square.check (Board.get board) Square.collision
+            , outOfBounds = not << Board.inBounds
+            , swapRight = Square.canSwapRight (Board.get board) player
+            , swapLeft = Square.canSwapLeft (Board.get board) player
+            , threatened = \_ -> False
+            , belongsToPlayer =
+                Square.check (Board.get board) (Square.belongs player)
+            }
+            player
+
+
+threatened : ChessBoard -> Player -> Position -> Position -> Bool
+threatened board player from to =
     let
         opponent =
             Player.next player
 
-        canMoveTo =
-            Ruleset.member attempt
+        opponentMoves =
+            board
+                |> simulateMove { from = from, to = to }
+                |> Maybe.map (possibleMoves opponent)
 
-        opponentsPossibleMoves =
-            List.filterMap (simulateSelect board opponent) Board.positions
+        canMoveTo allMoves =
+            Ruleset.member to allMoves
     in
-    List.all canMoveTo opponentsPossibleMoves
+    Maybe.map canMoveTo opponentMoves
+        |> Maybe.withDefault False
 
 
 kingPosition : ChessBoard -> Player -> Position -> Bool

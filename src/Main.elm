@@ -8,6 +8,7 @@ import ChessBoard exposing (ChessBoard)
 import Element exposing (Element)
 import Highlight exposing (Highlight)
 import Move exposing (Move(..))
+import Move.Ruleset as Ruleset exposing (Ruleset, Valid)
 import Piece exposing (Piece)
 import Player exposing (Player)
 import Position exposing (Position)
@@ -148,9 +149,11 @@ viewGame model =
             , board = model.board
             , length = model.size
             }
-        , Player.view model.current
-        , Element.text
-            model.message
+        , Element.column [ Element.width (Element.px 500) ]
+            [ Player.view model.current
+            , Element.text
+                model.message
+            ]
         ]
 
 

@@ -54,7 +54,7 @@ union (Ruleset a) (Ruleset b) =
     Set.union a b |> Ruleset
 
 
-remove : Ruleset Illegal -> Ruleset All -> Ruleset Valid
+remove : Ruleset Illegal -> Ruleset All -> Ruleset a
 remove (Ruleset illegal) (Ruleset all) =
     Set.diff all illegal
         |> Ruleset
@@ -250,12 +250,16 @@ king { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft
             rules
                 [ outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
-                , kingThreatenedRule isThreatened all
                 , kingSwapRightRule swapRight position
                 , kingSwapLeftRule swapLeft position
                 ]
+
+        validAndThreatened =
+            remove illegalRuleset all
     in
-    remove illegalRuleset all
+    -- This ugly workaround is due to the fact that isThreatened is usually very
+    -- heavy to calculate so we just want to run it on the remaining pieces.
+    remove (kingThreatenedRule isThreatened validAndThreatened) validAndThreatened
 
 
 checkMate :
