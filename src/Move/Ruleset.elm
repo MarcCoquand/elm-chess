@@ -93,6 +93,11 @@ contains position moves =
         |> member position
 
 
+foldl : (Position -> b -> b) -> b -> Ruleset a -> b
+foldl f b (Ruleset a) =
+    Set.foldl f b a
+
+
 rules : List (Ruleset a) -> Ruleset a
 rules =
     -- Same as unions
@@ -246,7 +251,7 @@ king { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft
         ( all, swapRook ) =
             allKing position
 
-        illegalRuleset =
+        illegalExceptThreatened =
             rules
                 [ outOfBoundsRule outOfBounds all
                 , attackOwnPieceRule belongsToPlayer all
@@ -254,12 +259,12 @@ king { belongsToPlayer, outOfBounds, isThreatened, position, swapRight, swapLeft
                 , kingSwapLeftRule swapLeft position
                 ]
 
-        validAndThreatened =
-            remove illegalRuleset all
+        validExceptThreatened =
+            remove illegalExceptThreatened all
     in
     -- This ugly workaround is due to the fact that isThreatened is usually very
     -- heavy to calculate so we just want to run it on the remaining pieces.
-    remove (kingThreatenedRule isThreatened validAndThreatened) validAndThreatened
+    remove (kingThreatenedRule isThreatened validExceptThreatened) validExceptThreatened
 
 
 checkMate :

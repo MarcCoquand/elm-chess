@@ -74,7 +74,7 @@ change pieces board =
     Board.update coordinates board
 
 
-simulateMove : { from : Position, to : Position } -> ChessBoard -> Maybe ChessBoard
+simulateMove : { from : Position, to : Position } -> ChessBoard -> ChessBoard
 simulateMove { from, to } board =
     Board.get board from
         |> Maybe.andThen Square.toMaybe
@@ -83,6 +83,7 @@ simulateMove { from, to } board =
                 change [ { piece = piece, player = player, from = from, to = to } ]
                     board
             )
+        |> Maybe.withDefault board
 
 
 performMove : ChessBoard -> Move -> Maybe ChessBoard
@@ -152,6 +153,27 @@ select board player position =
         |> Maybe.andThen (Square.applyIfOwner player selected)
 
 
+simulateSelect : Player -> Position -> ChessBoard -> Ruleset Valid
+simulateSelect player position board =
+    let
+        selected owner piece =
+            Piece.rule
+                { blank = Square.check (Board.get board) Square.blank
+                , collision = Square.check (Board.get board) Square.collision
+                , outOfBounds = not << Board.inBounds
+                , swapRight = Square.canSwapRight (Board.get board) player
+                , swapLeft = Square.canSwapLeft (Board.get board) player
+                , threatened = \_ -> False
+                , belongsToPlayer =
+                    Square.check (Board.get board) (Square.belongs player)
+                }
+                { player = owner, position = position, piece = piece }
+    in
+    Board.get board position
+        |> Maybe.andThen (Square.applyIfOwner player selected)
+        |> Maybe.withDefault Ruleset.empty
+
+
 getAllBelongingTo : Player -> ChessBoard -> List ( Position, Piece )
 getAllBelongingTo player board =
     let
@@ -198,16 +220,28 @@ threatened board player from to =
         opponent =
             Player.next player
 
-        opponentMoves =
+        simulatedBoard =
             board
                 |> simulateMove { from = from, to = to }
-                |> Maybe.map (possibleMoves opponent)
+
+        opponentsRange =
+            List.foldl
+                (\position range ->
+                    Ruleset.union range
+                        (simulateSelect
+                            opponent
+                            position
+                            simulatedBoard
+                        )
+                )
+                Ruleset.empty
+                Board.positions
 
         canMoveTo allMoves =
             Ruleset.member to allMoves
+                |> Debug.log "True or false"
     in
-    Maybe.map canMoveTo opponentMoves
-        |> Maybe.withDefault False
+    canMoveTo opponentsRange
 
 
 kingPosition : ChessBoard -> Player -> Position -> Bool
